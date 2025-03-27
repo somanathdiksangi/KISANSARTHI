@@ -43,7 +43,6 @@ def main():
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
         phone_number TEXT UNIQUE NULL,
         password_hash TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -238,17 +237,19 @@ def main():
         user_id INTEGER NOT NULL,
         land_id INTEGER NULL,
         planting_id INTEGER NULL,
-        recommendation_type TEXT NOT NULL,
+        recommendation_type TEXT NOT NULL, -- e.g., 'weekly_tip', 'fertilizer', 'pest_alert'
         recommendation_date TEXT DEFAULT CURRENT_TIMESTAMP,
         title TEXT NULL,
         details TEXT NOT NULL,
         reasoning TEXT NULL,
         related_crop_id INTEGER NULL,
         related_fertilizer_id INTEGER NULL,
-        is_read INTEGER DEFAULT 0, -- Using INTEGER for BOOLEAN (0=false, 1=true)
-        is_archived INTEGER DEFAULT 0,
+        is_read INTEGER DEFAULT 0, -- 0 = Unread, 1 = Read
+        is_archived INTEGER DEFAULT 0, -- 0 = Active, 1 = Archived
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        
+        -- Foreign Keys with appropriate cascading rules
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         FOREIGN KEY (land_id) REFERENCES lands (id) ON DELETE CASCADE,
         FOREIGN KEY (planting_id) REFERENCES plantings (id) ON DELETE CASCADE,
@@ -256,6 +257,7 @@ def main():
         FOREIGN KEY (related_fertilizer_id) REFERENCES fertilizers (id) ON DELETE SET NULL
     );
     """
+
 
     # --- SQL Statements for Index Creation ---
 

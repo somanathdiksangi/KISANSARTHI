@@ -1,0 +1,1486 @@
+// File: App.js
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar'; // Import StatusBar
+
+import AppNavigator from './src/navigation/AppNavigator'; // Import the navigator
+
+export default function App() {
+  return (
+    <NavigationContainer>
+        <StatusBar style="auto" /> {/* Or "dark", "light" based on your design */}
+        <AppNavigator />
+    </NavigationContainer>
+  );
+}
+// File: app.json
+{
+  "expo": {
+    "name": "kisansarthi",
+    "slug": "kisansarthi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
+
+// File: index.js
+import { registerRootComponent } from 'expo';
+
+import App from './App';
+
+// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
+// It also ensures that whether you load the app in Expo Go or in a native build,
+// the environment is set up appropriately
+registerRootComponent(App);
+
+// File: src/api/api.js
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+
+// --- Configuration ---
+
+// IMPORTANT: Replace with your actual backend URL
+// Android Emulator typically uses 10.0.2.2 to reach host machine's localhost
+// iOS Simulator can use localhost directly
+// Physical device needs your machine's local network IP (e.g., 192.168.1.100)
+const BASE_URL = Platform.OS === 'android'
+    ? 'http://10.0.2.2:5000/api/v1' // Default for Android Emulator
+    : 'http://localhost:5000/api/v1'; // Default for iOS Simulator / Web
+
+// Key for storing the auth token in AsyncStorage
+const AUTH_TOKEN_KEY = 'userAuthToken';
+
+// --- Helper Functions ---
+
+/**
+ * Retrieves the authentication token from AsyncStorage.
+ * @returns {Promise<string|null>} The token or null if not found.
+ */
+const getAuthToken = async () => {
+    try {
+        // return 'demo-token-user-1'; // Use this for initial testing with placeholder auth
+        const token = await AsyncStorage.getItem(AUTH_TOKEN_KEY);
+        return token;
+    } catch (e) {
+        console.error('Failed to fetch auth token from storage', e);
+        return null;
+    }
+};
+
+/**
+ * Stores the authentication token in AsyncStorage.
+ * @param {string} token The token to store.
+ * @returns {Promise<void>}
+ */
+const storeAuthToken = async (token) => {
+    try {
+        await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
+    } catch (e) {
+        console.error('Failed to save auth token to storage', e);
+    }
+};
+
+/**
+ * Removes the authentication token from AsyncStorage.
+ * @returns {Promise<void>}
+ */
+const removeAuthToken = async () => {
+    try {
+        await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
+    } catch (e) {
+        console.error('Failed to remove auth token from storage', e);
+    }
+};
+
+
+/**
+ * Generic request handler.
+ * @param {string} endpoint - The API endpoint (e.g., '/users/me').
+ * @param {string} [method='GET'] - HTTP method.
+ * @param {object|null} [body=null] - Request body for POST/PUT.
+ * @param {boolean} [isAuthenticated=true] - Whether to include the Auth header.
+ * @param {boolean} [isFormData=false] - Whether the body is FormData.
+ * @returns {Promise<any>} - The JSON response body.
+ * @throws {Error} - Throws an error on network issues or non-OK responses.
+ */
+const request = async (endpoint, method = 'GET', body = null, isAuthenticated = true, isFormData = false) => {
+    const url = `${BASE_URL}${endpoint}`;
+    const headers = new Headers();
+
+    if (!isFormData) {
+         headers.append('Content-Type', 'application/json');
+    }
+    headers.append('Accept', 'application/json');
+
+
+    if (isAuthenticated) {
+        const token = await getAuthToken();
+        if (token) {
+            headers.append('Authorization', `Bearer ${token}`);
+        } else {
+            // Handle cases where auth is required but token is missing
+            // Optionally, could redirect to login or throw specific auth error
+            console.warn(`Attempted authenticated request to ${endpoint} without token.`);
+            // Depending on backend, request might fail anyway, or you can throw here:
+            // throw new Error('Authentication token is missing.');
+        }
+    }
+
+    const config = {
+        method: method,
+        headers: headers,
+    };
+
+    if (body) {
+        config.body = isFormData ? body : JSON.stringify(body);
+    }
+
+    try {
+        const response = await fetch(url, config);
+
+        // Handle No Content response
+        if (response.status === 204) {
+            return null; // Or {}, depending on how you want to handle it
+        }
+
+        const responseBody = await response.json();
+
+        if (!response.ok) {
+            // Use error message from backend response if available
+            const errorMessage = responseBody?.message || responseBody?.description || `HTTP error ${response.status}`;
+            const error = new Error(errorMessage);
+            error.status = response.status;
+            error.body = responseBody; // Attach full body for potential details
+            throw error;
+        }
+
+        return responseBody;
+
+    } catch (error) {
+        console.error(`API request failed: ${method} ${endpoint}`, error);
+        // Re-throw the error so calling code can handle it (e.g., show user message)
+        throw error;
+    }
+};
+
+// --- API Endpoint Functions ---
+
+// 1. Authentication
+export const register = (userData) => request('/auth/register', 'POST', userData, false); // No auth needed
+export const login = (credentials) => request('/auth/login', 'POST', credentials, false); // No auth needed
+// Note: We'll call storeAuthToken after successful login/register in the UI logic
+
+// Utility to be called on logout
+export const logout = removeAuthToken;
+
+
+// 2. Users
+export const getCurrentUser = () => request('/users/me', 'GET');
+export const updateCurrentUser = (userData) => request('/users/me', 'PUT', userData);
+
+// 3. Farms
+export const createFarm = (farmData) => request('/farms', 'POST', farmData);
+export const listFarms = (limit = 20, offset = 0) => request(`/farms?limit=${limit}&offset=${offset}`, 'GET');
+export const getFarm = (farmId) => request(`/farms/${farmId}`, 'GET');
+export const updateFarm = (farmId, farmData) => request(`/farms/${farmId}`, 'PUT', farmData);
+export const deleteFarm = (farmId) => request(`/farms/${farmId}`, 'DELETE');
+
+// 4. Lands
+export const createLand = (farmId, landData) => request(`/farms/${farmId}/lands`, 'POST', landData);
+export const listLands = (farmId, limit = 50, offset = 0) => request(`/farms/${farmId}/lands?limit=${limit}&offset=${offset}`, 'GET');
+export const getLand = (landId) => request(`/lands/${landId}`, 'GET');
+export const updateLand = (landId, landData) => request(`/lands/${landId}`, 'PUT', landData);
+export const deleteLand = (landId) => request(`/lands/${landId}`, 'DELETE');
+
+// 5. Hardware Devices
+export const registerHardwareDevice = (deviceData) => request('/hardware_devices', 'POST', deviceData);
+export const listFarmHardwareDevices = (farmId, status = null) => {
+    let endpoint = `/farms/${farmId}/hardware_devices`;
+    if (status) {
+        endpoint += `?status=${status}`;
+    }
+    return request(endpoint, 'GET');
+};
+export const getHardwareDevice = (deviceId) => request(`/hardware_devices/${deviceId}`, 'GET');
+export const updateHardwareDevice = (deviceId, deviceData) => request(`/hardware_devices/${deviceId}`, 'PUT', deviceData);
+export const updateDeviceAssignment = (deviceId, assignmentData) => request(`/hardware_devices/${deviceId}/assignment`, 'PUT', assignmentData);
+export const deleteHardwareDevice = (deviceId) => request(`/hardware_devices/${deviceId}`, 'DELETE');
+
+// 6. Soil Readings
+export const getSoilReadings = (landId, params = {}) => {
+    // params could be { start_date, end_date, parameters: 'ph,moisture', limit, offset }
+    const query = new URLSearchParams(params).toString();
+    return request(`/lands/${landId}/soil-readings?${query}`, 'GET');
+};
+// Note: Ingest endpoint is called by the device, not the mobile app.
+
+// 7. Plantings
+export const startPlanting = (landId, plantingData) => request(`/lands/${landId}/plantings`, 'POST', plantingData);
+export const getPlanting = (plantingId) => request(`/plantings/${plantingId}`, 'GET');
+export const updatePlanting = (plantingId, plantingData) => request(`/plantings/${plantingId}`, 'PUT', plantingData);
+// Optional: export const getPlantingHistory = (landId) => request(`/lands/${landId}/plantings/history`, 'GET');
+
+// 8. Diagnostics
+/**
+ * Uploads a plant image for disease analysis.
+ * @param {object} imageData - Object containing { uri: string, name: string, type: string } for the image.
+ * @param {number|null} [landId] - Optional associated land ID.
+ * @param {number|null} [plantingId] - Optional associated planting ID.
+ * @returns {Promise<any>} - The initial response (log_id, status).
+ */
+export const scanPlantDisease = (imageData, landId = null, plantingId = null) => {
+    const formData = new FormData();
+    formData.append('image', {
+        uri: imageData.uri,
+        name: imageData.name,
+        type: imageData.type,
+    });
+    if (landId !== null) {
+        formData.append('land_id', landId.toString());
+    }
+    if (plantingId !== null) {
+        formData.append('planting_id', plantingId.toString());
+    }
+    // Use the generic request helper, specifying isFormData=true
+    return request('/diagnostics/scan-plant', 'POST', formData, true, true);
+};
+export const getDiagnosisLog = (logId) => request(`/diagnostics/logs/${logId}`, 'GET');
+export const listDiagnosisLogs = (params = {}) => {
+     // params could be { limit, offset, land_id }
+    const query = new URLSearchParams(params).toString();
+    return request(`/diagnostics/logs?${query}`, 'GET');
+};
+
+// 9. Recommendations
+export const getCropSuggestions = (landId) => request(`/lands/${landId}/crop-suggestions`, 'GET');
+export const getFertilizerRecommendations = (landId) => request(`/lands/${landId}/fertilizer-recommendations`, 'GET');
+export const getRecommendations = (params = {}) => {
+     // params could be { type: 'weekly_tip', is_read: false, limit, offset, farm_id, land_id }
+    const query = new URLSearchParams(params).toString();
+    return request(`/recommendations?${query}`, 'GET');
+};
+export const updateRecommendationStatus = (recommendationId, statusData) => request(`/recommendations/${recommendationId}/status`, 'PUT', statusData);
+
+// 10. Reference Data
+export const listCrops = () => request('/crops', 'GET', null, false); // Assuming public or auth optional
+export const listDiseases = () => request('/diseases', 'GET', null, false); // Assuming public or auth optional
+export const listFertilizers = () => request('/fertilizers', 'GET', null, false); // Assuming public or auth optional
+
+
+// --- Export Auth Helpers ---
+// Export storage functions so UI can call them directly on login/logout flows
+export { storeAuthToken, removeAuthToken as clearAuthToken, getAuthToken };
+// File: src/components/Dashboard/AlertCard.js
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { AlertTriangle } from 'lucide-react-native'; // Or other relevant icon
+import { COLORS } from '../../theme/colors';
+
+// Function to format time difference (simplified)
+const formatTimeAgo = (timestamp) => {
+    // Placeholder logic - use a library like 'date-fns' or 'moment' in production
+    return timestamp ? "2h ago" : "Recently";
+};
+
+const AlertCard = ({ alert, onPress }) => {
+    const title = alert?.title ?? 'Alert';
+    const subtitle = alert?.reasoning ?? alert?.details ?? 'No details'; // Example logic
+    const time = formatTimeAgo(alert?.recommendation_date);
+
+    return (
+        <TouchableOpacity style={styles.card} onPress={() => onPress(alert)}>
+            <View style={styles.iconContainer}>
+                <AlertTriangle size={22} color={COLORS.warning} />
+            </View>
+            <View style={styles.textContainer}>
+                <Text style={styles.title} numberOfLines={1}>{title}</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+            </View>
+            <Text style={styles.time}>{time}</Text>
+        </TouchableOpacity>
+    );
+};
+
+const styles = StyleSheet.create({
+    card: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderRadius: 10,
+        padding: 12,
+        marginBottom: 10,
+        // Shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
+        elevation: 1.5,
+    },
+    iconContainer: {
+        marginRight: 12,
+        // backgroundColor: COLORS.errorLight, // Optional background for icon
+        // padding: 5,
+        // borderRadius: 15,
+    },
+    textContainer: {
+        flex: 1, // Take available space
+        marginRight: 10,
+    },
+    title: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: COLORS.textDark,
+        marginBottom: 2,
+    },
+    subtitle: {
+        fontSize: 13,
+        color: COLORS.textLight,
+    },
+    time: {
+        fontSize: 12,
+        color: COLORS.textLight,
+        marginLeft: 'auto', // Push time to the right
+    },
+});
+
+export default AlertCard;
+// File: src/components/Dashboard/DashboardHeader.js
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Bell } from 'lucide-react-native';
+import { COLORS } from '../../theme/colors';
+
+// Assume userName is passed as a prop, potentially fetched in the parent screen
+const DashboardHeader = ({ userName, onNotificationPress }) => {
+    const profileInitial = userName ? userName.charAt(0).toUpperCase() : '?';
+
+    return (
+        <View style={styles.headerContainer}>
+            <View style={styles.profileContainer}>
+                <View style={styles.profileInitialCircle}>
+                    <Text style={styles.profileInitialText}>{profileInitial}</Text>
+                </View>
+                <Text style={styles.greetingText}>Hello, {userName || 'User'}</Text>
+            </View>
+            <TouchableOpacity onPress={onNotificationPress} style={styles.iconButton}>
+                <Bell size={24} color={COLORS.textDark} />
+            </TouchableOpacity>
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    headerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        backgroundColor: COLORS.headerBackground, // White background
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+        width: '100%', // Ensure full width
+    },
+    profileContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    profileInitialCircle: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.profileInitialBackground,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    profileInitialText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: COLORS.textDark,
+    },
+    greetingText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: COLORS.textDark,
+    },
+    iconButton: {
+        padding: 5, // Add padding for easier tapping
+    },
+});
+
+export default DashboardHeader;
+// File: src/components/Dashboard/EmptyDashboard.js
+import React from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { Plus } from 'lucide-react-native';
+import { COLORS } from '../../theme/colors';
+
+// Source for the illustration - replace with your actual asset or a placeholder
+const illustration = require('../../../assets/farmer-illustration.png'); // Adjust path if needed
+
+const EmptyDashboard = ({ onAddFarmPress }) => {
+    return (
+        <View style={styles.container}>
+            <Image source={illustration} style={styles.illustration} resizeMode="contain" />
+            <Text style={styles.message}>
+                Get started by adding your first farm.
+            </Text>
+            <TouchableOpacity style={styles.button} onPress={onAddFarmPress}>
+                <Plus size={18} color={COLORS.white} style={styles.buttonIcon} />
+                <Text style={styles.buttonText}>Add Farm</Text>
+            </TouchableOpacity>
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 30,
+        paddingBottom: 100, // Add more padding at bottom
+    },
+    illustration: {
+        width: 250,
+        height: 200, // Adjust size as needed
+        marginBottom: 30,
+    },
+    message: {
+        fontSize: 18,
+        color: COLORS.textMedium,
+        textAlign: 'center',
+        marginBottom: 40,
+        fontWeight: '500',
+    },
+    button: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.addFarmButtonBackground, // Dark button
+        paddingVertical: 15,
+        paddingHorizontal: 40,
+        borderRadius: 12, // Rounded corners
+        alignItems: 'center',
+        justifyContent: 'center',
+        // Shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    buttonIcon: {
+        marginRight: 8,
+    },
+    buttonText: {
+        color: COLORS.white,
+        fontSize: 16,
+        fontWeight: '600', // Semi-bold
+    },
+});
+
+export default EmptyDashboard;
+// File: src/components/Dashboard/FarmCard.js
+import React from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { MapPin, AlertTriangle } from 'lucide-react-native';
+import { COLORS } from '../../theme/colors';
+
+// Placeholder image function - replace with actual logic or props
+const getDummyImageUrl = () => `https://dummyjson.com/image/400x300/nature?${Math.random()}`;
+
+const FarmCard = ({ farm, onPress }) => {
+    // Extract data, providing defaults
+    const farmName = farm?.farm_name ?? 'Unknown Farm';
+    const farmId = farm?.id ?? 'N/A';
+    const locationHint = farm?.address ?? farm?.location_longitude ? 'Farm Location' : 'Location not set'; // Example logic
+    const alertCount = farm?.alert_count ?? 0; // Assuming API provides this eventually
+    const statusActive = true; // Placeholder for status
+
+    return (
+        <TouchableOpacity style={styles.card} onPress={() => onPress(farm.id)}>
+            <Image source={{ uri: getDummyImageUrl() }} style={styles.image} />
+            <View style={styles.content}>
+                <View style={styles.header}>
+                    <Text style={styles.farmName} numberOfLines={1}>{farmName}</Text>
+                    {statusActive && <View style={styles.statusDot} />}
+                </View>
+                <Text style={styles.farmId}>Farm ID: {farmId}</Text>
+                <View style={styles.detailRow}>
+                    <MapPin size={14} color={COLORS.textLight} style={styles.icon} />
+                    <Text style={styles.detailText} numberOfLines={1}>{locationHint}</Text>
+                </View>
+                {alertCount > 0 && (
+                    <View style={[styles.detailRow, styles.alertRow]}>
+                        <AlertTriangle size={14} color={COLORS.warning} style={styles.icon} />
+                        <Text style={styles.alertText}>{alertCount} Alert{alertCount > 1 ? 's' : ''}</Text>
+                    </View>
+                )}
+            </View>
+        </TouchableOpacity>
+    );
+};
+
+const styles = StyleSheet.create({
+    card: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.surface,
+        borderRadius: 12,
+        marginBottom: 15,
+        overflow: 'hidden', // Clip image corners
+        // Subtle shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
+    },
+    image: {
+        width: 100,
+        height: '100%', // Take full height of card (adjust if needed)
+        aspectRatio: 4 / 3.5, // Maintain aspect ratio
+    },
+    content: {
+        flex: 1,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    farmName: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: COLORS.textDark,
+        flexShrink: 1, // Allow name to shrink if needed
+        marginRight: 5,
+    },
+    statusDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: COLORS.secondary, // Green dot
+    },
+    farmId: {
+        fontSize: 13,
+        color: COLORS.textMedium,
+        marginBottom: 8,
+    },
+    detailRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    icon: {
+        marginRight: 5,
+    },
+    detailText: {
+        fontSize: 13,
+        color: COLORS.textLight,
+        flexShrink: 1, // Allow text to shrink
+    },
+    alertRow: {
+        backgroundColor: COLORS.errorLight, // Light red background
+        borderRadius: 4,
+        paddingVertical: 3,
+        paddingHorizontal: 6,
+        alignSelf: 'flex-start', // Don't take full width
+        marginTop: 4,
+    },
+    alertText: {
+        fontSize: 12,
+        color: COLORS.error, // Use error color for text
+        fontWeight: '500',
+    },
+});
+
+export default FarmCard;
+// File: src/components/Dashboard/TipCard.js
+import React from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { Bookmark, ExternalLink } from 'lucide-react-native'; // Or ChevronRight
+import { COLORS } from '../../theme/colors';
+
+const getDummyImageUrl = () => `https://dummyjson.com/image/200x150/abstract?${Math.random()}`;
+
+const TipCard = ({ tip, onPress, onBookmarkPress }) => {
+    const title = tip?.title ?? 'Tip Title';
+    const snippet = tip?.details?.substring(0, 100) + (tip?.details?.length > 100 ? '...' : '') ?? 'Tip details...';
+
+    return (
+        <TouchableOpacity style={styles.card} onPress={() => onPress(tip)}>
+            <Image source={{ uri: getDummyImageUrl() }} style={styles.image} />
+            <View style={styles.content}>
+                <Text style={styles.title} numberOfLines={2}>{title}</Text>
+                <Text style={styles.snippet} numberOfLines={2}>{snippet}</Text>
+                <TouchableOpacity onPress={() => onPress(tip)}>
+                    <Text style={styles.readMore}>Read More</Text>
+                </TouchableOpacity>
+            </View>
+            {/* Optional Bookmark */}
+            {/* <TouchableOpacity onPress={() => onBookmarkPress(tip)} style={styles.bookmarkButton}>
+                <Bookmark size={20} color={COLORS.textMedium} />
+            </TouchableOpacity> */}
+        </TouchableOpacity>
+    );
+};
+
+const styles = StyleSheet.create({
+    card: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.surface,
+        borderRadius: 12,
+        marginBottom: 15,
+        overflow: 'hidden',
+        // Shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
+    },
+    image: {
+        width: 80,
+        height: '100%',
+        aspectRatio: 1, // Make it square or adjust
+    },
+    content: {
+        flex: 1,
+        padding: 12,
+        justifyContent: 'space-between', // Distribute content vertically
+    },
+    title: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: COLORS.textDark,
+        marginBottom: 4,
+    },
+    snippet: {
+        fontSize: 13,
+        color: COLORS.textMedium,
+        lineHeight: 18,
+        marginBottom: 6,
+    },
+    readMore: {
+        fontSize: 13,
+        color: COLORS.link,
+        fontWeight: '500',
+    },
+    bookmarkButton: {
+         padding: 10,
+         position: 'absolute',
+         top: 5,
+         right: 5,
+    },
+});
+
+export default TipCard;
+// File: src/navigation/AppNavigator.js
+import React, { useState, useEffect } from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+// import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import { ActivityIndicator, View } from 'react-native'; // For loading check
+
+import RegisterScreen from '../screens/Auth/RegisterScreen';
+// import LoginScreen from '../screens/Auth/LoginScreen'; // Assuming you'll create this
+import BottomTabNavigator from './BottomTabNavigator'; // Import the Tab Navigator
+import { getAuthToken } from '../api/api'; // Import token checker
+import { COLORS } from '../theme/colors';
+
+// Placeholder for LoginScreen
+const TempLoginScreen = () => <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Login Screen</Text></View>;
+
+const Stack = createNativeStackNavigator();
+
+const AppNavigator = () => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [userToken, setUserToken] = useState(null);
+
+    useEffect(() => {
+        // Check login status when the app starts
+        const checkToken = async () => {
+            let token = null;
+            try {
+                token = await getAuthToken();
+                // In production, you might want to verify token validity with backend here
+            } catch (e) {
+                console.error("Failed to get auth token", e);
+            }
+            setUserToken(token);
+            setIsLoading(false);
+        };
+
+        checkToken();
+    }, []);
+
+    if (isLoading) {
+        // Show a loading indicator while checking token
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+        );
+    }
+
+    return (
+        <Stack.Navigator
+            screenOptions={{
+                headerShown: false,
+            }}
+        >{userToken == null ? (
+                // No token found, user isn't signed in
+                <Stack.Group>
+                    <Stack.Screen name="Register" component={RegisterScreen} />
+                    <Stack.Screen name="Login" component={TempLoginScreen} /> {/* Replace with real LoginScreen */}
+                </Stack.Group>
+            ) : (
+                <Stack.Screen name="AppTabs" component={BottomTabNavigator} />
+            )}
+        </Stack.Navigator>
+    );
+};
+
+export default AppNavigator;
+// File: src/navigation/BottomTabNavigator.js
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Home, ScanLine, BarChart3 } from 'lucide-react-native'; // Icons
+
+import DashboardScreen from '../screens/App/DashboardScreen';
+// Import other tab screens when created
+// import ScanScreen from '../screens/App/ScanScreen';
+// import AnalyticsScreen from '../screens/App/AnalyticsScreen';
+import { COLORS } from '../theme/colors';
+import { Platform } from 'react-native';
+
+const Tab = createBottomTabNavigator();
+
+// Temporary placeholder screens
+const ScanScreen = () => <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Scan Screen</Text></View>;
+const AnalyticsScreen = () => <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Analytics Screen</Text></View>;
+
+
+const BottomTabNavigator = () => {
+    return (
+        <Tab.Navigator
+            screenOptions={({ route }) => ({
+                headerShown: false, // We have custom headers in screens
+                tabBarIcon: ({ focused, color, size }) => {
+                    let IconComponent = Home; // Default icon
+
+                    if (route.name === 'Dashboard') {
+                        IconComponent = Home;
+                    } else if (route.name === 'Scan') {
+                        IconComponent = ScanLine;
+                    } else if (route.name === 'Analytics') {
+                        IconComponent = BarChart3;
+                    }
+
+                    // Adjust size and color based on focus state
+                    return <IconComponent size={focused ? size + 2 : size} color={color} />;
+                },
+                tabBarActiveTintColor: COLORS.primary, // Color for active tab
+                tabBarInactiveTintColor: COLORS.textLight, // Color for inactive tabs
+                tabBarStyle: {
+                    backgroundColor: COLORS.white,
+                    borderTopWidth: 1,
+                    borderTopColor: COLORS.border,
+                    height: Platform.OS === 'ios' ? 90 : 65, // Adjust height
+                    paddingBottom: Platform.OS === 'ios' ? 30 : 5, // Adjust padding for notch/android
+                    paddingTop: 5,
+                },
+                tabBarLabelStyle: {
+                    fontSize: 11,
+                    fontWeight: '500',
+                    // marginBottom: 5, // Adjust label position
+                },
+            })}
+        >
+            <Tab.Screen
+                name="Dashboard"
+                component={DashboardScreen}
+                options={{ tabBarLabel: 'Home' }} // Label shown in the tab bar
+            />
+            <Tab.Screen
+                name="Scan"
+                component={ScanScreen} // Replace with actual ScanScreen later
+            />
+            <Tab.Screen
+                name="Analytics"
+                component={AnalyticsScreen} // Replace with actual AnalyticsScreen later
+            />
+        </Tab.Navigator>
+    );
+};
+
+export default BottomTabNavigator;
+// File: src/screens/App/DashboardScreen.js
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+    StyleSheet,
+    View,
+    ScrollView,
+    ActivityIndicator,
+    Text,
+    TouchableOpacity,
+    RefreshControl,
+    Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context'; // Use edge-to-edge safe area
+
+import { COLORS } from '../../theme/colors';
+import * as api from '../../api/api';
+
+import DashboardHeader from '../../components/Dashboard/DashboardHeader';
+import EmptyDashboard from '../../components/Dashboard/EmptyDashboard';
+import FarmCard from '../../components/Dashboard/FarmCard';
+import AlertCard from '../../components/Dashboard/AlertCard';
+import TipCard from '../../components/Dashboard/TipCard';
+
+const DashboardScreen = ({ navigation }) => {
+    const [userData, setUserData] = useState(null);
+    const [farms, setFarms] = useState([]);
+    const [alerts, setAlerts] = useState([]); // Use recommendations for alerts for now
+    const [tips, setTips] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const fetchData = useCallback(async () => {
+        // Don't set loading true on refresh, use refreshing state
+        if (!refreshing) {
+             setIsLoading(true);
+        }
+        setError(null);
+
+        try {
+            // Fetch data concurrently
+            const [userRes, farmsRes, recommendationsRes] = await Promise.all([
+                api.getCurrentUser(),
+                api.listFarms(5), // Limit farms displayed initially if needed
+                api.getRecommendations({ type: 'weekly_tip', limit: 3, is_read: false }), // Fetch unread tips
+                // TODO: Add specific alert fetching if backend supports it
+                // For now, reuse recommendations or fetch all types
+            ]);
+
+            setUserData(userRes);
+            setFarms(farmsRes?.farms ?? []);
+
+            // Separate recommendations into alerts and tips (example logic)
+            const allRecs = recommendationsRes?.recommendations ?? [];
+            // Assuming alerts might be a different type or identified by title pattern
+            const fetchedAlerts = allRecs.filter(rec => rec.title?.toLowerCase().includes('alert') || rec.title?.toLowerCase().includes('low')); // Example filter
+            const fetchedTips = allRecs.filter(rec => !fetchedAlerts.includes(rec));
+
+            setAlerts(fetchedAlerts.slice(0, 2)); // Show max 2 recent alerts
+            setTips(fetchedTips.slice(0, 2)); // Show max 2 recent tips
+
+        } catch (err) {
+            console.error("Failed to fetch dashboard data:", err);
+            setError(err.message || "Failed to load data. Please try again.");
+        } finally {
+             setIsLoading(false);
+             setRefreshing(false);
+        }
+    }, [refreshing]); // Depend on refreshing state
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]); // Run fetchData when component mounts or refresh state changes
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        // fetchData will be triggered by the useEffect dependency change
+    }, []);
+
+    // --- Navigation Handlers ---
+    const handleNotificationPress = () => {
+        // navigation.navigate('Notifications');
+        Alert.alert("Navigate", "Go to Notifications Screen (Not implemented yet).");
+    };
+
+    const handleAddFarmPress = () => {
+        // navigation.navigate('AddFarm');
+        Alert.alert("Navigate", "Go to Add Farm Screen (Not implemented yet).");
+    };
+
+    const handleFarmPress = (farmId) => {
+         // navigation.navigate('FarmDetail', { farmId: farmId });
+         Alert.alert("Navigate", `Go to Farm Detail Screen for Farm ID: ${farmId} (Not implemented yet).`);
+    };
+
+     const handleViewAllAlerts = () => {
+        // navigation.navigate('AlertsList');
+        Alert.alert("Navigate", "Go to View All Alerts Screen (Not implemented yet).");
+    };
+
+    const handleAlertPress = (alert) => {
+        // navigation.navigate('AlertDetail', { alertId: alert.id });
+        Alert.alert("Navigate", `Go to Alert Detail Screen for Alert ID: ${alert.id} (Not implemented yet).`);
+    };
+
+     const handleViewAllTips = () => {
+        // navigation.navigate('TipsList');
+        Alert.alert("Navigate", "Go to View All Tips Screen (Not implemented yet).");
+    };
+
+     const handleTipPress = (tip) => {
+        // navigation.navigate('TipDetail', { tipId: tip.id });
+        Alert.alert("Navigate", `Go to Tip Detail Screen for Tip ID: ${tip.id} (Not implemented yet).`);
+    };
+
+    // --- Render Content ---
+    const renderContent = () => {
+        if (isLoading) {
+            return <ActivityIndicator size="large" color={COLORS.primary} style={styles.center} />;
+        }
+        if (error) {
+            return <Text style={[styles.center, styles.errorText]}>{error}</Text>;
+        }
+        if (farms.length === 0) {
+            return <EmptyDashboard onAddFarmPress={handleAddFarmPress} />;
+        }
+
+        // Populated Dashboard
+        return (
+            <View style={styles.populatedContent}>
+                {/* Your Farms Section */}
+                <SectionHeader title="Your Farms" />
+                <View style={styles.sectionContent}>
+                    {farms.map(farm => (
+                        <FarmCard key={farm.id} farm={farm} onPress={handleFarmPress} />
+                    ))}
+                    {/* TODO: Add "View All Farms" if applicable */}
+                </View>
+
+                {/* Recent Alerts Section */}
+                {alerts.length > 0 && (
+                    <>
+                        <SectionHeader title="Recent Alerts" onViewAll={handleViewAllAlerts} />
+                        <View style={styles.sectionContent}>
+                            {alerts.map(alert => (
+                                <AlertCard key={`alert-${alert.id}`} alert={alert} onPress={handleAlertPress} />
+                            ))}
+                        </View>
+                    </>
+                )}
+
+                {/* Courses & Tips Section */}
+                {tips.length > 0 && (
+                     <>
+                        <SectionHeader title="Courses & Tips" onViewAll={handleViewAllTips} />
+                        <View style={styles.sectionContent}>
+                            {tips.map(tip => (
+                                <TipCard key={`tip-${tip.id}`} tip={tip} onPress={handleTipPress} />
+                            ))}
+                        </View>
+                     </>
+                )}
+            </View>
+        );
+    };
+
+    return (
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+             {/* Keep bottom edge for potential bottom tabs */}
+            <DashboardHeader
+                userName={userData?.name}
+                onNotificationPress={handleNotificationPress}
+            />
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContentContainer}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary}/>
+                }
+            >
+                {renderContent()}
+            </ScrollView>
+            {/* Bottom Tab Navigator will be placed here by the navigator setup */}
+        </SafeAreaView>
+    );
+};
+
+// Helper component for section headers
+const SectionHeader = ({ title, onViewAll }) => (
+    <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {onViewAll && (
+            <TouchableOpacity onPress={onViewAll}>
+                <Text style={styles.viewAll}>View All</Text>
+            </TouchableOpacity>
+        )}
+    </View>
+);
+
+const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: COLORS.background, // Use the light grey background
+    },
+    scrollView: {
+        flex: 1,
+    },
+     scrollContentContainer: {
+        flexGrow: 1, // Ensure content can grow to fill space, important for centering empty state
+        paddingBottom: 30, // Add padding at the bottom
+    },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    errorText: {
+        color: COLORS.error,
+        textAlign: 'center',
+    },
+    // Styles for the populated dashboard content
+    populatedContent: {
+        paddingHorizontal: 15, // Add horizontal padding for sections
+        paddingTop: 10,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 20, // Space above section title
+        marginBottom: 12,
+        paddingHorizontal: 5, // Slight inner padding for alignment
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.textDark,
+    },
+    viewAll: {
+        fontSize: 14,
+        color: COLORS.link,
+        fontWeight: '500',
+    },
+    sectionContent: {
+        // Styles for the container holding cards within a section
+    },
+});
+
+export default DashboardScreen;
+// File: src/screens/Auth/LoginScreen.js
+
+// File: src/screens/Auth/RegisterScreen.js
+import React, { useState } from 'react';
+import {
+    StyleSheet,
+    Text,
+    View,
+    TextInput,
+    TouchableOpacity, // Using TouchableOpacity for simplicity, Pressable is also good
+    SafeAreaView,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    ActivityIndicator,
+    Alert,
+    Linking
+} from 'react-native';
+import { Check, Languages } from 'lucide-react-native'; // Icon library
+import * as WebBrowser from 'expo-web-browser';
+
+import { COLORS } from '../../theme/colors'; // Import defined colors
+import * as api from '../../api/api'; // Import all API functions
+
+// Navigation prop will be provided by React Navigation
+const RegisterScreen = ({ navigation }) => {
+    const [name, setName] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [password, setPassword] = useState(''); // Added Password field
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const handleLoginPress = () => {
+        // Navigate to Login Screen - Placeholder action
+        // navigation.navigate('Login');
+        console.log("Navigate to Login");
+        Alert.alert("Navigation", "Navigate to Login Screen (Not implemented yet).");
+    };
+
+    const handleLanguageChange = () => {
+        // Placeholder for language change logic
+        Alert.alert("Language", "Language change feature to be implemented.");
+    };
+
+    const handleTermsPress = async () => {
+        // Replace with your actual Terms URL
+        await WebBrowser.openBrowserAsync('https://example.com/terms');
+    };
+
+    const handlePrivacyPress = async () => {
+        // Replace with your actual Privacy Policy URL
+        await WebBrowser.openBrowserAsync('https://example.com/privacy');
+    };
+
+    const handleRegister = async () => {
+        setError(null); // Clear previous errors
+
+        // Basic Validation
+        if (!name.trim()) {
+            setError('Please enter your first name.');
+            return;
+        }
+        // Basic phone validation (can be improved)
+        if (!phoneNumber.trim() || !/^\+?[0-9\s-]{10,}$/.test(phoneNumber)) {
+            setError('Please enter a valid phone number.');
+            return;
+        }
+        if (!password) { // Check password
+             setError('Please enter a password.');
+             return;
+        }
+         if (password.length < 6) { // Example: minimum length
+            setError('Password must be at least 6 characters long.');
+            return;
+        }
+        if (!agreedToTerms) {
+            setError('You must agree to the Terms & Conditions and Privacy Policy.');
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const userData = {
+                name: name,
+                phone_number: phoneNumber,
+                password: password,
+                 // NOTE: Email is required by the backend API but not in this UI.
+                 // The backend might need adjustment, or the UI needs an email field.
+                 // For now, sending without email - expect potential backend error depending on its validation.
+                 // A dummy email could be sent if needed temporarily for testing:
+                 // email: `${phoneNumber.replace(/[^0-9]/g, '')}@example.com`
+            };
+
+            console.log('Registering with:', userData); // Log data being sent
+            const response = await api.register(userData);
+            console.log('Registration successful:', response);
+
+            // Store token
+            if (response && response.token) {
+                await api.storeAuthToken(response.token);
+                // Navigate to the main part of the app (e.g., Dashboard)
+                // Replace 'AppMain' with the actual name of your main navigator/screen
+                // navigation.replace('AppMain'); // Use replace to prevent going back to auth
+                 Alert.alert("Success", "Registration successful! Navigating to main app...(Not implemented)");
+            } else {
+                 setError('Registration completed, but no token received.');
+            }
+
+        } catch (err) {
+            console.error('Registration failed:', err);
+            // Use error message from API response if available, otherwise generic message
+            setError(err.message || 'An unexpected error occurred during registration.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={styles.container}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20} // Adjust offset if needed
+            >
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                    {/* Language Change Button */}
+                    <TouchableOpacity style={styles.langButton} onPress={handleLanguageChange}>
+                         <Languages size={24} color={COLORS.textDark} />
+                         <Text style={styles.langButtonText}>Language</Text>
+                    </TouchableOpacity>
+
+                    {/* Header Text */}
+                    <Text style={styles.title}>Welcome to Framfresh</Text>
+                    <Text style={styles.subtitle}>
+                        Create an account to connect your farm to your phone and monitor it from anywhere at anytime.
+                    </Text>
+
+                    {/* Form Inputs */}
+                    <View style={styles.inputContainer}>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="First name"
+                            placeholderTextColor={COLORS.placeholder}
+                            value={name}
+                            onChangeText={setName}
+                            autoCapitalize="words"
+                            textContentType="name" // Helps with autofill
+                        />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Phone number"
+                            placeholderTextColor={COLORS.placeholder}
+                            value={phoneNumber}
+                            onChangeText={setPhoneNumber}
+                            keyboardType="phone-pad"
+                            textContentType="telephoneNumber" // Helps with autofill
+                        />
+                         <TextInput // Added Password Field
+                            style={styles.input}
+                            placeholder="Password"
+                            placeholderTextColor={COLORS.placeholder}
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry // Hides password input
+                            textContentType="newPassword" // Helps with password managers
+                        />
+                    </View>
+
+                    {/* Error Message Display */}
+                    {error && <Text style={styles.errorText}>{error}</Text>}
+
+                    {/* Register Button */}
+                    <TouchableOpacity
+                        style={[styles.button, isLoading && styles.buttonDisabled]}
+                        onPress={handleRegister}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator size="small" color={COLORS.white} />
+                        ) : (
+                            <Text style={styles.buttonText}>Register</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    {/* "Or" Separator */}
+                    <Text style={styles.orText}>or</Text>
+
+                    {/* Login Link */}
+                    <View style={styles.loginContainer}>
+                        <Text style={styles.loginPrompt}>Already have an account? </Text>
+                        <TouchableOpacity onPress={handleLoginPress}>
+                            <Text style={styles.loginLink}>Login</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Terms Agreement Checkbox */}
+                    <View style={styles.termsContainer}>
+                        <TouchableOpacity
+                            style={[styles.checkboxBase, agreedToTerms && styles.checkboxChecked]}
+                            onPress={() => setAgreedToTerms(!agreedToTerms)}
+                        >
+                            {agreedToTerms && <Check size={16} color={COLORS.white} />}
+                        </TouchableOpacity>
+                        <Text style={styles.termsText}>
+                            By continuing, you agree to Framfresh's{' '}
+                            <Text style={styles.linkText} onPress={handleTermsPress}>Terms & Conditions</Text>
+                            {' '}and{' '}
+                            <Text style={styles.linkText} onPress={handlePrivacyPress}>Privacy Policy</Text>
+                        </Text>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
+    );
+};
+
+// --- Styles ---
+const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: COLORS.background,
+    },
+    container: {
+        flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1, // Allows content to scroll if needed
+        paddingHorizontal: 25,
+        paddingTop: 30, // Adjust as needed
+        paddingBottom: 40,
+        justifyContent: 'center', // Center vertically if content is short
+    },
+     langButton: {
+        position: 'absolute',
+        top: 15, // Adjust position relative to safe area/header if present
+        right: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 5,
+    },
+    langButtonText: {
+        marginLeft: 5,
+        fontSize: 14,
+        color: COLORS.textDark,
+    },
+    title: {
+        fontSize: 26,
+        fontWeight: 'bold',
+        color: COLORS.textDark,
+        textAlign: 'left', // Match image alignment
+        marginBottom: 10,
+        marginTop: 50, // Add space below language button
+    },
+    subtitle: {
+        fontSize: 16,
+        color: COLORS.textLight,
+        textAlign: 'left',
+        marginBottom: 30,
+        lineHeight: 22,
+    },
+    inputContainer: {
+        width: '100%',
+        marginBottom: 15,
+    },
+    input: {
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 12, // Rounded corners
+        paddingHorizontal: 15,
+        paddingVertical: 12, // Adjust for comfortable height
+        fontSize: 16,
+        color: COLORS.textDark,
+        marginBottom: 15, // Space between inputs
+        width: '100%',
+    },
+    button: {
+        backgroundColor: COLORS.primary,
+        paddingVertical: 15,
+        borderRadius: 12, // Rounded corners
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        marginTop: 10,
+        minHeight: 50, // Ensure button has a good minimum height
+        // Subtle Shadow (optional, platform-specific)
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 3.84,
+        elevation: 3,
+    },
+     buttonDisabled: {
+        backgroundColor: '#A8DDE0', // Lighter shade when disabled
+    },
+    buttonText: {
+        color: COLORS.white,
+        fontSize: 18,
+        fontWeight: '600', // Semi-bold
+    },
+    orText: {
+        fontSize: 14,
+        color: COLORS.textLight,
+        textAlign: 'center',
+        marginVertical: 20,
+    },
+    loginContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 30,
+    },
+    loginPrompt: {
+        fontSize: 15,
+        color: COLORS.textLight,
+    },
+    loginLink: {
+        fontSize: 15,
+        color: COLORS.primary, // Use primary color for link
+        fontWeight: '600',
+    },
+    termsContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-start', // Align checkbox to top of text
+        width: '100%',
+        marginTop: 20,
+    },
+    checkboxBase: {
+        width: 22,
+        height: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+        borderWidth: 1.5,
+        borderColor: COLORS.primary,
+        borderRadius: 4,
+        backgroundColor: COLORS.white,
+    },
+    checkboxChecked: {
+        backgroundColor: COLORS.primary,
+    },
+    termsText: {
+        flex: 1, // Allow text to wrap
+        fontSize: 13,
+        color: COLORS.textLight,
+        lineHeight: 18,
+    },
+    linkText: {
+        color: COLORS.primary, // Use primary color for links within text
+        textDecorationLine: 'underline',
+        fontWeight: '500',
+    },
+     errorText: {
+        color: COLORS.error,
+        fontSize: 14,
+        textAlign: 'center',
+        marginBottom: 10,
+        marginTop: 5,
+    },
+});
+
+export default RegisterScreen;
+// File: src/theme/colors.js
+// src/theme/colors.js
+export const COLORS = {
+    primary: '#65C1C8', // Teal/Blue from register button
+    primaryDark: '#003366', // Example dark blue (adjust if needed)
+    primaryLight: '#E0F7FA', // Light background for some cards/sections
+
+    secondary: '#4CAF50', // Green for status indicator
+    secondaryLight: '#E8F5E9', // Light green background
+
+    background: '#F4F6F8', // Light grey background for dashboard
+    surface: '#FFFFFF',    // White for cards
+
+    textDark: '#212121',   // Very dark grey/black for main text
+    textMedium: '#555555', // Medium grey for subtitles/secondary text
+    textLight: '#757575',  // Lighter grey
+    placeholder: '#BDBDBD', // Grey for input placeholders
+    border: '#E0E0E0',     // Light grey for borders/dividers
+
+    white: '#FFFFFF',
+    black: '#000000',
+
+    error: '#D32F2F',      // Red for errors/alerts indicator
+    errorLight: '#FFEBEE', // Light red background
+    warning: '#FFA000',    // Amber/Orange for warnings (like low moisture alert icon)
+
+    link: '#2979FF',       // Blue for "View All" / "Read More" links
+
+    // Specific UI elements from mockups
+    headerBackground: '#FFFFFF',
+    profileInitialBackground: '#E0E0E0', // Background for profile initial circle
+    addFarmButtonBackground: '#333333', // Dark button in empty state
+};

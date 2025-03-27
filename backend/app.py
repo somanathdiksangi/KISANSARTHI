@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify, g, abort
 from werkzeug.security import generate_password_hash, check_password_hash # Used for password hashing
 from functools import wraps
 import datetime
+import logging
 import random # For dummy data generation
 
 # --- Configuration ---
@@ -127,10 +128,10 @@ def auth_required(f):
 @app.route('/api/v1/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
-    if not data or not data.get('email') or not data.get('password') or not data.get('name'):
+    if not data or not data.get('password') or not data.get('name'):
         abort(400, description="Missing required fields: name, email, password.")
 
-    email = data['email']
+    # email = data['email']
     name = data['name']
     phone = data.get('phone_number') # Optional
 
@@ -138,15 +139,15 @@ def register():
     password_hash = generate_password_hash(data['password'])
     # --- End Security ---
 
-    sql = "INSERT INTO users (name, email, phone_number, password_hash) VALUES (?, ?, ?, ?)"
+    sql = "INSERT INTO users (name, phone_number, password_hash) VALUES (?, ?, ?)"
     try:
-        user_id = execute_db(sql, (name, email, phone, password_hash))
-        user = query_db("SELECT id, name, email FROM users WHERE id = ?", (user_id,), one=True)
+        user_id = execute_db(sql, (name, phone, password_hash))
+        user = query_db("SELECT id, name FROM users WHERE id = ?", (user_id,), one=True)
         # Generate simple demo token (replace with JWT in production)
         token = f"demo-token-user-{user_id}"
         return jsonify({"user": user, "token": token}), 201
     except sqlite3.IntegrityError: # Caught by execute_db, but can be caught here for specific message
-        abort(409, description=f"Email '{email}' or phone number '{phone}' already registered.")
+        abort(409, description=f"phone number '{phone}' already registered.")
 
 @app.route('/api/v1/auth/login', methods=['POST'])
 def login():
@@ -157,7 +158,7 @@ def login():
     login_identifier = data['email_or_phone']
     password_attempt = data['password']
 
-    user = query_db("SELECT * FROM users WHERE email = ? OR phone_number = ?",
+    user = query_db("SELECT * FROM users phone_number = ?",
                     (login_identifier, login_identifier), one=True)
 
     # --- SECURITY: Check hashed password ---
@@ -165,7 +166,7 @@ def login():
         # --- End Security ---
         # Generate simple demo token (replace with JWT in production)
         token = f"demo-token-user-{user['id']}"
-        user_info = { "id": user['id'], "name": user['name'], "email": user['email'] }
+        user_info = { "id": user['id'], "name": user['name'] }
         return jsonify({"user": user_info, "token": token}), 200
     else:
         abort(401, description="Invalid credentials.")
@@ -174,7 +175,7 @@ def login():
 @app.route('/api/v1/users/me', methods=['GET'])
 @auth_required
 def get_current_user():
-    user = query_db("SELECT id, name, email, phone_number, created_at FROM users WHERE id = ?", (g.user['id'],), one=True)
+    user = query_db("SELECT id, name, phone_number, created_at FROM users WHERE id = ?", (g.user['id'],), one=True)
     if not user:
         # This case should ideally not happen if auth_required works correctly
         abort(404, description="User not found.")
@@ -215,7 +216,7 @@ def update_current_user():
     execute_db(sql, tuple(update_values))
 
     # Fetch and return the updated user (excluding password hash)
-    user = query_db("SELECT id, name, email, phone_number, created_at, updated_at FROM users WHERE id = ?", (g.user['id'],), one=True)
+    user = query_db("SELECT id, name, phone_number, created_at, updated_at FROM users WHERE id = ?", (g.user['id'],), one=True)
     return jsonify(user), 200
 
 # 3. Farms (/farms) - (Ownership checks seem okay)
@@ -1342,88 +1343,63 @@ def get_fertilizer_recommendations(land_id):
 @app.route('/api/v1/recommendations', methods=['GET'])
 @auth_required
 def get_recommendations():
-    # This endpoint is primarily for general tips or alerts stored in the `recommendations` table.
-    limit = request.args.get('limit', 20, type=int)
-    offset = request.args.get('offset', 0, type=int)
-    rec_type = request.args.get('type') # Filter by type (e.g., 'weekly_tip', 'fertilizer', 'pest_alert')
-    is_read_filter = request.args.get('is_read') # 'true', 'false', or None
-    farm_id = request.args.get('farm_id', type=int)
-    land_id = request.args.get('land_id', type=int)
-    if limit > 100: limit = 100
+    try:
+        # Parameters with validation
+        limit = min(request.args.get('limit', 20, type=int), 100)
+        offset = request.args.get('offset', 0, type=int)
+        rec_type = request.args.get('type')
+        is_read_filter = request.args.get('is_read')
+        farm_id = request.args.get('farm_id', type=int)
+        land_id = request.args.get('land_id', type=int)
 
-    # Base query joining necessary tables for filtering
-    sql_base = """
-        SELECT r.*, l.land_name as related_land_name, f.farm_name as related_farm_name
-        FROM recommendations r
-        LEFT JOIN lands l ON r.land_id = l.id
-        LEFT JOIN farms f ON r.farm_id = f.id OR l.farm_id = f.id -- Link via farm_id or land's farm_id
-        WHERE r.user_id = ? AND r.is_archived = 0
-    """
-    count_base = """
-        SELECT COUNT(*) as count
-        FROM recommendations r
-        LEFT JOIN lands l ON r.land_id = l.id
-        LEFT JOIN farms f ON r.farm_id = f.id OR l.farm_id = f.id
-        WHERE r.user_id = ? AND r.is_archived = 0
-    """
-    params = [g.user['id']]
-    count_params = [g.user['id']]
+        # Validate boolean filter
+        if is_read_filter and is_read_filter.lower() not in ['true', 'false']:
+            return jsonify({"error": "Invalid is_read parameter"}), 400
 
-    # Add filters
-    if rec_type:
-        sql_base += " AND r.recommendation_type = ?"
-        count_base += " AND r.recommendation_type = ?"
-        params.append(rec_type)
-        count_params.append(rec_type)
+        # Base query
+        sql_base = """
+            SELECT r.*, l.land_name AS related_land_name, f.farm_name AS related_farm_name
+            FROM recommendations r
+            LEFT JOIN lands l ON r.land_id = l.id
+            LEFT JOIN farms f ON l.farm_id = f.id
+            WHERE r.user_id = ? AND r.is_archived = 0
+        """
+        count_base = "SELECT COUNT(*) AS count FROM recommendations r WHERE r.user_id = ? AND r.is_archived = 0"
+        params = [g.user['id']]
+        count_params = [g.user['id']]
 
-    if is_read_filter is not None:
-        is_read_val = 1 if is_read_filter.lower() == 'true' else 0
-        sql_base += " AND r.is_read = ?"
-        count_base += " AND r.is_read = ?"
-        params.append(is_read_val)
-        count_params.append(is_read_val)
+        # Filters
+        if rec_type:
+            sql_base += " AND r.recommendation_type = ?"
+            count_base += " AND r.recommendation_type = ?"
+            params.append(rec_type)
+            count_params.append(rec_type)
 
-    if land_id:
-        # Verify user owns this land_id implicitly via user_id check in WHERE r.user_id = ?
-        sql_base += " AND r.land_id = ?"
-        count_base += " AND r.land_id = ?"
-        params.append(land_id)
-        count_params.append(land_id)
-    elif farm_id: # Only apply farm filter if land filter is not set
-         # Verify user owns this farm_id implicitly
-        sql_base += " AND (r.farm_id = ? OR l.farm_id = ?)" # Check direct farm_id or land's farm_id
-        count_base += " AND (r.farm_id = ? OR l.farm_id = ?)"
-        params.extend([farm_id, farm_id])
-        count_params.extend([farm_id, farm_id])
+        if is_read_filter is not None:
+            is_read_val = 1 if is_read_filter.lower() == 'true' else 0
+            sql_base += " AND r.is_read = ?"
+            count_base += " AND r.is_read = ?"
+            params.append(is_read_val)
+            count_params.append(is_read_val)
 
-    # --- Placeholder: Generate a dummy tip if none exist for the user ---
-    # In reality, tips should be generated by a background task.
-    if not rec_type or rec_type == 'weekly_tip':
-         # Check if *any* non-archived tip exists for this user
-         tip_check_sql = "SELECT COUNT(*) as count FROM recommendations WHERE user_id = ? AND recommendation_type = 'weekly_tip' AND is_archived = 0"
-         existing_tips_count = query_db(tip_check_sql, (g.user['id'],), one=True)['count']
-         if existing_tips_count == 0:
-             print(f"No weekly tips found for user {g.user['id']}. Creating a dummy tip.")
-             dummy_tip_sql = """
-                 INSERT INTO recommendations (user_id, recommendation_type, title, details, reasoning, severity)
-                 VALUES (?, 'weekly_tip', 'Check Weather Forecast',
-                         'Review the upcoming weather forecast to plan irrigation and field activities accordingly.',
-                         'Proactive planning helps optimize water usage and protect crops.', 'low')
-             """
-             try:
-                 execute_db(dummy_tip_sql, (g.user['id'],))
-             except Exception as e:
-                 print(f"Error creating dummy tip: {e}") # Log error but continue
-    # --- End Placeholder ---
+        if land_id:
+            sql_base += " AND r.land_id = ?"
+            count_base += " AND r.land_id = ?"
+            params.append(land_id)
+            count_params.append(land_id)
 
-    # Add ordering, limit, offset
-    sql = sql_base + " ORDER BY r.recommendation_date DESC, r.created_at DESC LIMIT ? OFFSET ?"
-    params.extend([limit, offset])
+        # Final query
+        sql_base += " ORDER BY r.recommendation_date DESC, r.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
 
-    recommendations = query_db(sql, tuple(params))
-    total = query_db(count_base, tuple(count_params), one=True)['count']
+        recommendations = query_db(sql_base, tuple(params))
+        total = query_db(count_base, tuple(count_params), one=True)['count']
 
-    return jsonify({"recommendations": recommendations, "total": total}), 200
+        return jsonify({"recommendations": recommendations, "total": total}), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching recommendations: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route('/api/v1/recommendations/<int:recommendation_id>/status', methods=['PUT'])
@@ -1538,7 +1514,6 @@ if __name__ == '__main__':
         print(f"Database file '{DATABASE}' not found.")
         print("Running the `create_db.py` script first to initialize the database schema.")
         createdb()
-        exit(1)
 
     # --- Add default/dummy data only if DB is empty ---
     # Connect once to check and potentially add data
