@@ -6,7 +6,17 @@ from werkzeug.security import generate_password_hash, check_password_hash # Used
 from functools import wraps
 import datetime
 import logging
-import random # For dummy data generation
+import random # For dummy data generation    
+from agents.crop_suggestion import Crop_Suggestion
+
+from agents.fertilizer_recommender import Fertilizer_Recommender
+from dotenv import load_dotenv
+
+
+# Load environment variables
+load_dotenv()
+GEN_API_KEY = os.getenv('GEN_API_KEY')
+WEATHER_API_KEY = os.getenv('WEATHER_API_KEY')
 
 # --- Configuration ---
 DATABASE = "farm_app.db"
@@ -1190,60 +1200,46 @@ def get_crop_suggestions(land_id):
         abort(404, description="Land not found or access denied.")
 
     # --- Placeholder: Crop Suggestion Logic ---
-    print(f"Generating dummy crop suggestions for land_id: {land_id}")
-    # In Production: Use real logic based on soil, climate, history etc.
-    # 1. Fetch latest NPK, pH from soil_readings for land_id
-    # 2. Fetch location/climate data (if available)
-    # 3. Query `crops` table filtering by known requirements (e.g., pH range)
-    # 4. Score remaining crops based on NPK match, climate, possibly ML model.
-
-    # Fetch latest reading timestamp for context
-    latest_reading = query_db("SELECT timestamp, ph_value FROM soil_readings WHERE land_id = ? ORDER BY timestamp DESC LIMIT 1", (land_id,), one=True)
-    latest_reading_ts = latest_reading['timestamp'] if latest_reading else "N/A"
-    current_ph = latest_reading['ph_value'] if latest_reading and latest_reading['ph_value'] is not None else None
-
-    # Get a few random crops from the DB as dummy suggestions
-    dummy_crops = query_db("SELECT id, crop_name, description, image_url, optimal_ph_min, optimal_ph_max FROM crops ORDER BY RANDOM() LIMIT 3")
-    if not dummy_crops:
-         return jsonify({"based_on_reading_ts": latest_reading_ts, "suggestions": []}), 200 # Return empty if no crops defined
-
     suggestions = []
-    soil_context = land.get('soil_type_detected') or land.get('soil_type_manual') or 'local'
-    for crop in dummy_crops:
-        # Simulate suitability score based on dummy factors (e.g., pH match)
-        score = random.uniform(0.6, 0.9) # Base random score
-        reason = f"General suitability for {soil_context} conditions."
-        ph_match = "N/A"
-        if current_ph and crop.get('optimal_ph_min') is not None and crop.get('optimal_ph_max') is not None:
-             ph_range_str = f"{crop['optimal_ph_min']}-{crop['optimal_ph_max']}"
-             if crop['optimal_ph_min'] <= current_ph <= crop['optimal_ph_max']:
-                 score += 0.08 # Boost score for good pH match
-                 ph_match = f"Good (Current: {current_ph:.1f}, Optimal: {ph_range_str})"
-             elif current_ph < crop['optimal_ph_min'] - 0.5 or current_ph > crop['optimal_ph_max'] + 0.5:
-                 score -= 0.1 # Penalize score for poor pH match
-                 ph_match = f"Poor (Current: {current_ph:.1f}, Optimal: {ph_range_str})"
-             else: # Close but outside optimal
-                 ph_match = f"Fair (Current: {current_ph:.1f}, Optimal: {ph_range_str})"
-             reason += f" pH match: {ph_match.split('(')[0].strip()}."
+    latest_reading = query_db("""
+        SELECT timestamp, nitrogen_value, phosphorus_value, potassium_value
+        FROM soil_readings
+        WHERE land_id = ? AND (nitrogen_value IS NOT NULL OR phosphorus_value IS NOT NULL OR potassium_value IS NOT NULL)
+        ORDER BY timestamp DESC LIMIT 1
+        """, (land_id,), one=True)
+    latest_reading_ts = latest_reading['timestamp'] if latest_reading else "N/A"
+    current_n = latest_reading.get('nitrogen_value',0)
+    current_p = latest_reading.get('phosphorus_value',0)
+    current_k = latest_reading.get('potassium_value',0)
+    ph_value = latest_reading.get('ph_value',0.7)
 
-        # Ensure score is within bounds [0, 1]
-        score = max(0.5, min(0.99, round(score, 2)))
+    # score = max(0.5, min(0.99, round(score, 2)))
+    crop = Crop_Suggestion(GEN_API_KEY).execute(location="Maharashtra", WEATHER_API_KEY=WEATHER_API_KEY, soil_data={
+    "Nitrogen" : current_n,
+    "Phosphorus" : current_p,
+    "Pottasium" : current_k,
+    "pH" : ph_value
+    })
 
-        suggestions.append({
-            "crop": { # Nest crop details
-                "id": crop['id'],
-                "crop_name": crop['crop_name'],
-                "description": crop.get('description'),
-                "image_url": crop.get('image_url')
-            },
-            "suitability_score": score,
-            "reasoning": reason.strip(),
-            "details": { # Add specific details used in reasoning
-                 "ph_match": ph_match,
-                 # Add dummy NPK match details if needed
-                 "npk_match": random.choice(["Good", "Fair", "Needs Adjustment"])
-             }
-        })
+    suggestions.append({
+        "crop": { # Nest crop details
+            "id": 1,
+            "crop_name": crop.get('Crop'),
+            "description": crop.get('Description'),
+            "image_url": f"http://dummyjson.com/image/200x300/{crop['Crop']}"
+        },
+        "suitability_score": 0.4 if crop.get('Match').lower() == "low" else  1 if crop.get('Match').lower() == "high" else 0.6,
+        "reasoning": crop.get('Explanation'),
+        "Growing Season": crop.get('Growing Season'),
+        "Water Requirement": crop.get("Water Requirement"),
+        "Expected Yield" : crop.get("Expected Yield"),
+        "Recommendations" : crop.get("Recommendations"),
+        "details": { # Add specific details used in reasoning
+             "ph_match": crop.get('Match'),
+             # Add dummy NPK match details if needed
+             "npk_match": crop.get('Match')
+         }
+    })
 
     # Sort suggestions by score descending
     suggestions.sort(key=lambda x: x['suitability_score'], reverse=True)
@@ -1258,85 +1254,58 @@ def get_crop_suggestions(land_id):
 @app.route('/api/v1/lands/<int:land_id>/fertilizer-recommendations', methods=['GET'])
 @auth_required
 def get_fertilizer_recommendations(land_id):
-    # Verify ownership and check for active planting
-    land_info = query_db("""
-        SELECT l.id, l.area, l.area_unit, l.current_planting_id,
-               p.status as planting_status, p.planting_date,
-               c.id as crop_id, c.crop_name,
-               f.user_id
-        FROM lands l
-        JOIN farms f ON l.farm_id = f.id
-        LEFT JOIN plantings p ON l.current_planting_id = p.id
-        LEFT JOIN crops c ON p.crop_id = c.id
-        WHERE l.id = ?
+     # Verify ownership
+    land = query_db("SELECT l.id, l.soil_type_detected, l.soil_type_manual, f.user_id FROM lands l JOIN farms f ON l.farm_id = f.id WHERE l.id = ?", (land_id,), one=True)
+    if not land or land['user_id'] != g.user['id']:
+        abort(404, description="Land not found or access denied.")
+
+    # --- Placeholder: Crop Suggestion Logic ---
+    suggestions = []
+    latest_reading = query_db("""
+        SELECT sr.timestamp, sr.nitrogen_value, sr.phosphorus_value, sr.potassium_value, sr.ph_value,
+               p.crop_id, c.crop_name
+        FROM soil_readings sr
+        LEFT JOIN plantings p ON p.land_id = sr.land_id AND p.status = 'active'
+        LEFT JOIN crops c ON c.id = p.crop_id
+        WHERE sr.land_id = ?
+          AND (sr.nitrogen_value IS NOT NULL OR sr.phosphorus_value IS NOT NULL OR sr.potassium_value IS NOT NULL)
+        ORDER BY sr.timestamp DESC
+        LIMIT 1
     """, (land_id,), one=True)
 
-    if not land_info or land_info['user_id'] != g.user['id']:
-        abort(404, description="Land not found or access denied.")
-    if not land_info['current_planting_id'] or land_info['planting_status'] != 'active':
-         abort(400, description="No active planting found for this land plot. Fertilizer recommendations require an active planting.")
-
-    # --- Placeholder: Fertilizer Recommendation Logic ---
-    print(f"Generating dummy fertilizer recommendations for land_id: {land_id}, crop: {land_info['crop_name']}")
-    # In Production: Use real logic based on soil NPK, crop needs, growth stage.
-    # 1. Fetch latest NPK readings for land_id.
-    # 2. Fetch target NPK for `crop_id` based on time since `planting_date` (growth stage).
-    # 3. Calculate NPK deficit (target - current).
-    # 4. Query `fertilizers` table matching deficit (e.g., high N fertilizer if N deficit is high).
-    # 5. Calculate amount needed based on deficit, fertilizer composition, and `land_info['area']`/`land_info['area_unit']`.
-
-    # Fetch latest NPK reading for context
-    latest_reading = query_db("""
-        SELECT timestamp, nitrogen_value, phosphorus_value, potassium_value
-        FROM soil_readings
-        WHERE land_id = ? AND (nitrogen_value IS NOT NULL OR phosphorus_value IS NOT NULL OR potassium_value IS NOT NULL)
-        ORDER BY timestamp DESC LIMIT 1
-        """, (land_id,), one=True)
     latest_reading_ts = latest_reading['timestamp'] if latest_reading else "N/A"
-    current_n = latest_reading.get('nitrogen_value')
-    current_p = latest_reading.get('phosphorus_value')
-    current_k = latest_reading.get('potassium_value')
+    current_n = latest_reading.get('nitrogen_value', 0)
+    current_p = latest_reading.get('phosphorus_value', 0)
+    current_k = latest_reading.get('potassium_value', 0)
+    ph_value = latest_reading.get('ph_value', 7.0)
+    crop_id = latest_reading.get('crop_id', None)
+    crop_name = latest_reading.get('crop_name', "Unknown")
 
+
+    # score = max(0.5, min(0.99, round(score, 2)))
+    fertilizer = Fertilizer_Recommender(GEN_API_KEY).execute(crop=crop_name, location="Maharashtra", WEATHER_API_KEY=WEATHER_API_KEY, soil_data={
+    "Nitrogen" : current_n,
+    "Phosphorus" : current_p,
+    "Pottasium" : current_k,
+    "pH" : ph_value
+    })
     dummy_recommendations = []
-
-    # Simulate calculating a deficit and finding a fertilizer
-    if latest_reading and random.random() > 0.2: # 80% chance of generating a recommendation if readings exist
-        # Pick a random NPK fertilizer from DB
-        dummy_fertilizer = query_db("SELECT id, fertilizer_name, type, description FROM fertilizers WHERE type LIKE '%npk%' ORDER BY RANDOM() LIMIT 1", one=True)
-
-        if dummy_fertilizer:
-            # Simulate calculating amount
-            area = land_info.get('area', 1.0) or 1.0 # Default to 1 if area is null/zero
-            area_unit = land_info.get('area_unit', 'hectares')
-            amount_per_unit = round(random.uniform(5, 30) * (1 if area_unit == 'hectares' else 2.47), 1) # Rough conversion factor
-            total_amount = round(amount_per_unit * area, 1)
-            unit_label = 'kg' # Assume kg for calculation simplicity
-            area_unit_label = 'hectare' if area_unit == 'hectares' else ('acre' if area_unit == 'acres' else area_unit)
-
-            # Dummy reasoning based on random deficit
-            nutrient_deficit = random.choice(['Nitrogen', 'Phosphorus', 'Potassium', 'General NPK'])
-            reason = f"Based on recent soil readings (N:{current_n or '?'}, P:{current_p or '?'}, K:{current_k or '?'}), {nutrient_deficit} levels appear slightly low for {land_info['crop_name']}. Apply a balanced fertilizer."
-
-            dummy_recommendations.append({
-                 # "id": None, # Would get ID if persisted in `recommendations` table
-                 "recommendation_type": "fertilizer",
-                 "title": f"Apply {dummy_fertilizer['fertilizer_name']}",
-                 "details": f"Apply approximately {total_amount} {unit_label} ({amount_per_unit} {unit_label}/{area_unit_label}) of {dummy_fertilizer['fertilizer_name']} to the {land_info['area']:.2f} {area_unit_label} plot.",
-                 "reasoning": reason,
-                 "severity": random.choice(["low", "medium"]), # Dummy severity
-                 "related_fertilizer": {
-                     "id": dummy_fertilizer['id'],
-                     "fertilizer_name": dummy_fertilizer['fertilizer_name'],
-                     "type": dummy_fertilizer['type']
-                 }
-            })
+    dummy_recommendations.append({
+         # "id": None, # Would get ID if persisted in `recommendations` table
+         "recommendation_type": "fertilizer",
+         "title": f"Apply {fertilizer['Fertilizer Product']}",
+         "details": fertilizer['Description'],
+         "reasoning": fertilizer['Explanation'],
+         "amount" : fertilizer['Amount'],
+         "price" : fertilizer["Price"],
+         "buyat" : fertilizer['Buy at'],
+         "severity": random.choice(["low", "medium"]), # Dummy severity
+    })
     # --- End Placeholder ---
 
     return jsonify({
         "based_on_reading_ts": latest_reading_ts,
         "land_id": land_id,
-        "planting_id": land_info['current_planting_id'],
-        "crop_name": land_info['crop_name'],
         "recommendations": dummy_recommendations
     }), 200
 

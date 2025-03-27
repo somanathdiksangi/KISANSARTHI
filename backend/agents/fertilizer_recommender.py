@@ -1,8 +1,10 @@
-from provider import Agent
+from agents.provider import Agent
 import aiohttp, json
 import asyncio
-import pickle
+import pickle, re
 from bs4 import BeautifulSoup
+from agents.weather_agent import get_weather_data
+
 
 async def fetch_content(session, url):
     try:
@@ -45,8 +47,8 @@ demo_soil_data = {
 
 
 class Fertilizer_Recommender:
-    def __init__(self):
-        self.agent = Agent()
+    def __init__(self, GEN_API_KEY):
+        self.agent = Agent(GEN_API_KEY)
 
     def load_model_and_predict(self):
         with open('./model/fertilizer.pkl', 'rb') as model_file:
@@ -61,10 +63,24 @@ class Fertilizer_Recommender:
             input_data = [[1, 80, 50, 100, 6.5, 1000, 20, 1]]  # Example input
             prediction = model.predict(input_data)
 
-    def execute(self, fertilizer="Urea", soil_data=None, crop='Tur'):
-        urls = ['https://farmkart.com/search?q=fertilizer&options%5Bprefix%5D=last', f"https://krishisevakendra.in/search?q={fertilizer+'+' if fertilizer else 'urea+'}fertilizer&options%5Bprefix%5D=last"]
-        result = extract_text_from_websites(urls)
-        # print(result)
+    def execute(self, location, WEATHER_API_KEY, soil_data=demo_soil_data, crop='Tur'):
+        if "temperature" not in soil_data:
+            d = get_weather_data(location, WEATHER_API_KEY)
+            soil_data["temperature"] = d["temperature"]
+            soil_data["Rainfall"] = d["rainfall"]
+            soil_data['humidity'] = d['humidity']
+
+        with open('./agents/model/fertilizer.pkl', "rb") as file:
+            model = pickle.load(file)
+            #soil color
+            #NPK
+            #ph
+            #rainfall
+            #temp
+            #crop
+            input_data = [["Red" , int(soil_data['Nitrogen']), int(soil_data['Phosphorus']), int(soil_data['Pottasium']), float(soil_data['pH']), float(soil_data["Rainfall"]), float(soil_data['temperature']), crop]]
+            prediction = model.predict(input_data)[0]
+
         task = f"""
 Role-Playing: You are an expert agricultural specialist with extensive knowledge of farming and fertilizers. You understand precisely which crop types and soils require specific fertilizers and in what amounts. You excel at providing detailed and relevant explanations to farmers, clearly communicating the benefits of your recommendations in an accessible manner.
 
@@ -85,7 +101,7 @@ Consider the following data:
 
 Crop: {crop}
 Soil Data: {soil_data}
-Type of Fertilizer Recommended: {fertilizer}
+Type of Fertilizer Recommended: {prediction}
 
 Provide your response in the structured format outlined above. Do not include any introductory or concluding remarks.
 """
@@ -96,4 +112,46 @@ Provide your response in the structured format outlined above. Do not include an
         #     print(f"\nURL: {url}\n{'-'*60}\n{data[:500]}...")  # Print first 500 chars
 
 
-Fertilizer_Recommender().execute()
+
+def parse_crop_response(response_text):
+    """
+    Parses the crop recommendation response and converts it into a dictionary.
+
+    Args:
+        response_text (str): The input text in the specified response format.
+
+    Returns:
+        dict: A dictionary containing parsed information.
+    """
+    # Define the regex pattern using non-greedy matching and clear field boundaries
+    pattern = re.compile(
+        r"Crop:\s*(.*?)\s*"
+        r"Fertilizer:\s*(.*?)\s*"
+        r"Fertilizer Product:\s*(.*?)\s*"
+        r"Explanation:\s*(.*?)\s*"
+        r"Buy at:\s*(.*?)\s*"
+        r"Amount:\s*(.*?)\s*"
+        r"Price:\s*(.*?)\s*"
+        r"Description:\s*(.*)",
+        re.DOTALL
+    )
+
+    # Perform regex search
+    match = pattern.search(response_text)
+    if not match:
+        return {"Error": "Invalid or improperly formatted response"}
+
+    # Extract data and map to dictionary
+    fields = [
+        "Crop",
+        "Match",
+        "Description",
+        "Explanation",
+        "Growing Season",
+        "Water Requirement",
+        "Expected Yield",
+        "Recommendations"
+    ]
+    data = {field: match.group(i+1).strip() for i, field in enumerate(fields)}
+
+    return data

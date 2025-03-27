@@ -176,7 +176,7 @@ const LandDetailScreen = ({ navigation }) => {
 
                 {/* Action Grid - Conditional Rendering */}
                 <View style={styles.actionGridContainer}>
-                    {!currentPlanting && ( // Show suggestion only if NO crop
+                    {currentPlanting && ( // Show suggestion only if NO crop
                          <View style={styles.actionGridRow}>
                             <ActionCard title="Crop Suggestion" onPress={handleCropSuggestion} imageUrl={'https://dummyjson.com/image/300x200/vegetables'}/>
                             <ActionCard title="Diagnosing Plant Disease" onPress={handleDiagnoseDisease} imageUrl={'https://dummyjson.com/image/300x200/leaf'}/>

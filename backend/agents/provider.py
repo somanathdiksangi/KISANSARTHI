@@ -1,9 +1,8 @@
 from google import genai
 import os
 
-GEN_API_KEY = os.environ.get('GEN_API_KEY')
 class Agent:
-    def __init__(self):
+    def __init__(self, GEN_API_KEY):
         self.client = genai.Client(api_key=GEN_API_KEY)
 
     def execute(self, task):
