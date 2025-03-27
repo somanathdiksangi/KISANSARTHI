@@ -2,20 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     StyleSheet,
     View,
-    FlatList, // Use FlatList for performance
+    FlatList,
     ActivityIndicator,
     Text,
     TouchableOpacity,
     RefreshControl,
     Alert,
-    Platform,
 } from 'react-native';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, SlidersHorizontal, Languages } from 'lucide-react-native';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
-import { SlidersHorizontal, Languages } from 'lucide-react-native'; // Icons for header
-import * as Haptics from 'expo-haptics'; // For feedback on selection
+import * as Haptics from 'expo-haptics';
 
 import { COLORS } from '../../theme/colors';
 import * as api from '../../api/api';
@@ -42,9 +40,9 @@ const CropSuggestionScreen = ({ navigation }) => {
     const landId = route.params?.landId ?? null;
 
     const [suggestions, setSuggestions] = useState([]);
-    const [soilContext, setSoilContext] = useState({ timestamp: null, npkPh: null }); // Store context from API
+    const [soilContext, setSoilContext] = useState({ timestamp: null, npkPh: null });
     const [isLoading, setIsLoading] = useState(true);
-    const [isSelecting, setIsSelecting] = useState(false); // Loading state for planting action
+    const [isSelecting, setIsSelecting] = useState(false);
     const [error, setError] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -60,18 +58,21 @@ const CropSuggestionScreen = ({ navigation }) => {
 
         try {
             const response = await api.getCropSuggestions(landId);
+            console.log("API Response:", response); // Log the entire response
+
             setSuggestions(response?.suggestions ?? []);
 
-            // Store context data from response (assuming API provides it)
-            // Adjust keys based on your actual API response structure
-            const contextNpkPh = response?.details || response?.soil_conditions; // Example keys
+            // Extract soil context from the response
+            const firstSuggestion = response?.suggestions?.[0]; // Safely access the first suggestion
+            const contextDetails = firstSuggestion?.details;
+
             setSoilContext({
-                timestamp: Date(),
+                timestamp: response?.based_on_reading_ts || null, // Use timestamp from API
                 npkPh: {
-                    n: contextNpkPh?.nitrogen_value,
-                    p: contextNpkPh?.phosphorus_value,
-                    k: contextNpkPh?.potassium_value,
-                    ph: contextNpkPh?.ph_value,
+                    n: contextDetails?.Nitrogen,
+                    p: contextDetails?.Phosphorus,
+                    k: contextDetails?.Pottasium, // Corrected typo
+                    ph: contextDetails?.pH,
                 }
             });
 
@@ -92,14 +93,17 @@ const CropSuggestionScreen = ({ navigation }) => {
         setRefreshing(true);
     }, []);
 
-    // --- Action Handlers ---
     const handleFilterPress = () => Alert.alert("Filter", "Filtering options to be implemented.");
     const handleLanguagePress = () => Alert.alert("Language", "Language change to be implemented.");
 
-    const handleViewDetails = (crop) => {
-        // Navigate to a Crop Information screen (to be created)
-        // navigation.navigate('CropInfo', { cropId: crop.id });
-        Alert.alert("View Details", `Show details for ${crop?.crop_name} (Not implemented yet).`);
+    const handleViewDetails = (suggestion, context) => {
+        if (!suggestion || !suggestion.crop) return;
+
+        navigation.navigate('SuggestedCropDetail', {
+             suggestion: suggestion,
+             soilContext: context,
+             landId: landId
+        });
     };
 
     const handleSelectCrop = (crop) => {
@@ -112,30 +116,25 @@ const CropSuggestionScreen = ({ navigation }) => {
                 { text: "Cancel", style: "cancel" },
                 {
                     text: "Select",
-                    style: "default", // or "destructive" if it replaces something
+                    style: "default",
                     onPress: async () => {
                         setIsSelecting(true);
-                        setError(null); // Clear previous errors before trying
+                        setError(null);
                         try {
-                            // Call API to start planting
                             await api.startPlanting(landId, {
                                 crop_id: crop.id,
-                                planting_date: new Date().toISOString().split('T')[0], // Use today's date
-                                // Add expected_harvest_date or notes if needed/available
+                                planting_date: new Date().toISOString().split('T')[0],
                             });
 
-                            // Provide haptic feedback on success
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
                             Alert.alert("Success", `"${crop.crop_name}" selected for planting!`);
-                            // Navigate back to FarmDetail, potentially passing a flag to refresh data
                             navigation.goBack();
 
                         } catch (err) {
                              console.error("Failed to start planting:", err);
                              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                              setError(err.message || `Failed to select ${crop.crop_name}.`);
-                             // Show error in an alert as well
                              Alert.alert("Error", err.message || `Failed to select ${crop.crop_name}.`);
                         } finally {
                             setIsSelecting(false);
@@ -146,7 +145,6 @@ const CropSuggestionScreen = ({ navigation }) => {
         );
     };
 
-    // --- Render List Header ---
     const renderListHeader = () => (
         <View style={styles.headerContainer}>
             {soilContext.timestamp && (
@@ -160,12 +158,10 @@ const CropSuggestionScreen = ({ navigation }) => {
                 {soilContext.npkPh?.k !== undefined && <SoilSummaryPill label="K" value={soilContext.npkPh.k} />}
                 {soilContext.npkPh?.ph !== undefined && <SoilSummaryPill label="pH" value={soilContext.npkPh.ph} />}
             </ScrollView>
-             {/* Display overall error below pills if it occurred during selection */}
-            {error && <Text style={styles.errorTextGlobal}>{error}</Text>}
+             {error && <Text style={styles.errorTextGlobal}>{error}</Text>}
         </View>
     );
 
-    // --- Render List Empty ---
     const renderEmptyList = () => (
          <View style={styles.center}>
             {isLoading ? (
@@ -186,7 +182,6 @@ const CropSuggestionScreen = ({ navigation }) => {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-            {/* Custom Header with specific icons */}
              <View style={styles.customHeader}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
                     <ArrowLeft size={24} color={COLORS.textDark} />
@@ -207,6 +202,7 @@ const CropSuggestionScreen = ({ navigation }) => {
                 renderItem={({ item }) => (
                     <CropSuggestionCard
                         suggestion={item}
+                        soilContext={soilContext}
                         onSelect={handleSelectCrop}
                         onViewDetails={handleViewDetails}
                     />
@@ -218,11 +214,9 @@ const CropSuggestionScreen = ({ navigation }) => {
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary}/>
                 }
-                // Disable interaction while selecting a crop
                 scrollEnabled={!isSelecting}
                 pointerEvents={isSelecting ? 'none' : 'auto'}
             />
-             {/* Global loading indicator for planting selection */}
              {isSelecting && (
                 <View style={styles.selectionOverlay}>
                     <ActivityIndicator size="large" color={COLORS.primary} />

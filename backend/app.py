@@ -1226,18 +1226,25 @@ def get_crop_suggestions(land_id):
             "id": 1,
             "crop_name": crop.get('Crop'),
             "description": crop.get('Description'),
-            "image_url": f"http://dummyjson.com/image/200x300/{crop['Crop']}"
+            "image_url": f"http://dummyjson.com/image/200x300/{crop['Crop']}",
+            "optimal_ph_min": 6.0,  # Dummy value
+            "optimal_ph_max": 7.0,  # Dummy value
+            "optimal_moisture_range": "40-60%" #Dummy value
         },
-        "suitability_score": 0.4 if crop.get('Match').lower() == "low" else  1 if crop.get('Match').lower() == "high" else 0.6,
+        "suitability_score": float(crop.get('Match')),
         "reasoning": crop.get('Explanation'),
-        "Growing Season": crop.get('Growing Season'),
-        "Water Requirement": crop.get("Water Requirement"),
-        "Expected Yield" : crop.get("Expected Yield"),
+        "growing_season": crop.get('growing_season'),
+        "water_requirement": crop.get("water_requirement"),
+        "expected_yield" : crop.get("expected_yield"),
         "Recommendations" : crop.get("Recommendations"),
         "details": { # Add specific details used in reasoning
              "ph_match": crop.get('Match'),
              # Add dummy NPK match details if needed
-             "npk_match": crop.get('Match')
+             "npk_match": crop.get('Match'),
+                 "Nitrogen" : current_n,
+    "Phosphorus" : current_p,
+    "Pottasium" : current_k,
+    "pH" : ph_value
          }
     })
 

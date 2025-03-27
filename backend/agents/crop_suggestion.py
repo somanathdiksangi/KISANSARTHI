@@ -38,13 +38,13 @@ Instructions: You will be provided with raw soil data and crop information. Your
 
 ```
 Crop: <name of the crop>
-Match: <Matching Score with soil type>
+Match: <Matching Score with soil type (this should vary between 0 to 1)>
 Description: <a brief description>
 Explanation: <explain in layman's terms to the farmer why this crop is recommended, in an easy, non-technical manner>
-Growing Season: <season of growing>
-Water Requirement: <ideal require of water>
-Expected Yield: <expected yeild>
-Recommendations: <Additional Recommendations or tips while cultivating or planting>
+Growing Season: <season of growing (this should be multiline contaning heading and sub-heading)>
+Water Requirement: <ideal require of water (this should be multiline contaning heading and sub-heading)>
+Expected Yield: <expected yeild (this should be multiline contaning heading and sub-heading)>
+Recommendations: <List of Additional Recommendations or tips while cultivating or planting, seperated by '\\n'>
 ```
 
 Consider the following data:
@@ -94,9 +94,9 @@ def parse_crop_response(response_text):
         "Match",
         "Description",
         "Explanation",
-        "Growing Season",
-        "Water Requirement",
-        "Expected Yield",
+        "growing_season",
+        "water_requirement",
+        "expected_yield",
         "Recommendations"
     ]
     data = {field: match.group(i+1).strip() for i, field in enumerate(fields)}

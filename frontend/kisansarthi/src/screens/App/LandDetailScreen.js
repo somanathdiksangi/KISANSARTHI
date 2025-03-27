@@ -176,24 +176,21 @@ const LandDetailScreen = ({ navigation }) => {
 
                 {/* Action Grid - Conditional Rendering */}
                 <View style={styles.actionGridContainer}>
-                    {currentPlanting && ( // Show suggestion only if NO crop
+                    {currentPlanting && (
+                        <> // Show suggestion only if NO crop
                          <View style={styles.actionGridRow}>
                             <ActionCard title="Crop Suggestion" onPress={handleCropSuggestion} imageUrl={'https://dummyjson.com/image/300x200/vegetables'}/>
                             <ActionCard title="Diagnosing Plant Disease" onPress={handleDiagnoseDisease} imageUrl={'https://dummyjson.com/image/300x200/leaf'}/>
                         </View>
-                     )}
-                     {currentPlanting && ( // Show fertiliser rec only if crop IS planted
+                        // Show fertiliser rec only if crop IS planted
                          <View style={styles.actionGridRow}>
                             <ActionCard title="Fertiliser Recommendation" onPress={handleFertiliserRec} imageUrl={'https://dummyjson.com/image/300x200/agriculture'}/>
-                            <ActionCard title="Diagnosing Plant Disease" onPress={handleDiagnoseDisease} imageUrl={'https://dummyjson.com/image/300x200/leaf'}/>
-                         </View>
+                            <ActionCard title="Soil Monitoring" onPress={handleSoilMonitoring} imageUrl={'https://dummyjson.com/image/300x200/dirt'}/>
+                        </View>
+                         </>
                      )}
                     {/* Soil Monitoring is always available */}
-                     <View style={styles.actionGridRow}>
-                         {/* If only one card needed in a row, adjust styling or add placeholder */}
-                        <ActionCard title="Soil Monitoring" onPress={handleSoilMonitoring} imageUrl={'https://dummyjson.com/image/300x200/dirt'}/>
-                        <View style={styles.actionCardSpacer} />{/* Empty spacer to maintain layout */}
-                    </View>
+
                  </View>
 
                 {/* Current Soil Readings - Always show if available */}

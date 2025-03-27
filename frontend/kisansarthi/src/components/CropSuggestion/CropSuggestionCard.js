@@ -5,7 +5,7 @@ import StarRating from './StarRating'; // Import StarRating
 
 const getDummyImageUrl = (seed) => `https://dummyjson.com/image/600x400/nature?${seed}`;
 
-const CropSuggestionCard = ({ suggestion, onSelect, onViewDetails }) => {
+const CropSuggestionCard = ({ suggestion, soilContext, onSelect, onViewDetails }) => {
     const crop = suggestion?.crop;
     const score = suggestion?.suitability_score ?? 0; // Score between 0 and 1
     const matchPercentage = Math.round(score * 100);
@@ -36,9 +36,11 @@ const CropSuggestionCard = ({ suggestion, onSelect, onViewDetails }) => {
                 )}
 
                 <View style={styles.buttonRow}>
-                    <TouchableOpacity style={[styles.button, styles.detailsButton]} onPress={() => onViewDetails(crop)}>
+                    {/* ++ Pass suggestion and soilContext to onViewDetails ++ */}
+                    <TouchableOpacity style={[styles.button, styles.detailsButton]} onPress={() => onViewDetails(suggestion, soilContext)}>
                         <Text style={[styles.buttonText, styles.detailsButtonText]}>View Details</Text>
                     </TouchableOpacity>
+                    {/* Pass only crop to onSelect */}
                     <TouchableOpacity style={[styles.button, styles.selectButton]} onPress={() => onSelect(crop)}>
                         <Text style={[styles.buttonText, styles.selectButtonText]}>Select for Planting</Text>
                     </TouchableOpacity>
