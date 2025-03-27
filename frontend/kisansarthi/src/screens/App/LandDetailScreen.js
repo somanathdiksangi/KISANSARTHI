@@ -86,7 +86,20 @@ const LandDetailScreen = ({ navigation }) => {
     const handleNotificationPress = () => Alert.alert("Navigate", "Go to Notifications");
     const handleCropSuggestion = () => navigation.navigate('CropSuggestion', { landId: landId });
     const handleDiagnoseDisease = () => navigation.navigate('Scan');
-    const handleFertiliserRec = () => Alert.alert("Navigate", "Go to Fertiliser Recommendations (WIP)");
+    const handleFertiliserRec = () => {
+        if (!landId) {
+           Alert.alert("Error", "Cannot get recommendations. Land ID is missing.");
+           return;
+       }
+        if (!currentPlanting) { // Check if a crop is planted
+            Alert.alert("Info", "Fertilizer recommendations require an active planting.");
+            return;
+        }
+       // ++ Navigate to FertilizerRecommendation with landId ++
+       navigation.navigate('FertilizerRecommendation', { landId: landId });
+       // -- Remove Alert --
+       // Alert.alert("Navigate", "Go to Fertiliser Recommendations (WIP)");
+   };
     const handleSoilMonitoring = () => Alert.alert("Navigate", "Go to Soil Monitoring History (WIP)");
     const handleViewMonitoring = () => handleSoilMonitoring();
     const handleAlertPress = (alert) => Alert.alert("Navigate", `View Alert: ${alert.title} (WIP)`);

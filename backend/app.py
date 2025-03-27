@@ -9,7 +9,7 @@ import logging
 import random # For dummy data generation    
 from agents.crop_suggestion import Crop_Suggestion
 
-from agents.fertilizer_recommender import Fertilizer_Recommender
+from agents.fertilizer_recommender import FertilizerRecommender
 from dotenv import load_dotenv
 
 
@@ -1290,7 +1290,7 @@ def get_fertilizer_recommendations(land_id):
 
 
     # score = max(0.5, min(0.99, round(score, 2)))
-    fertilizer = Fertilizer_Recommender(GEN_API_KEY).execute(crop=crop_name, location="Maharashtra", WEATHER_API_KEY=WEATHER_API_KEY, soil_data={
+    fertilizer = FertilizerRecommender(GEN_API_KEY).execute(crop=crop_name, location="Maharashtra", WEATHER_API_KEY=WEATHER_API_KEY, soil_data={
     "Nitrogen" : current_n,
     "Phosphorus" : current_p,
     "Pottasium" : current_k,
@@ -1300,7 +1300,7 @@ def get_fertilizer_recommendations(land_id):
     dummy_recommendations.append({
          # "id": None, # Would get ID if persisted in `recommendations` table
          "recommendation_type": "fertilizer",
-         "title": f"Apply {fertilizer['Fertilizer Product']}",
+         "title": f"Apply {fertilizer['Fertilizer_Product']}",
          "details": fertilizer['Description'],
          "reasoning": fertilizer['Explanation'],
          "amount" : fertilizer['Amount'],
