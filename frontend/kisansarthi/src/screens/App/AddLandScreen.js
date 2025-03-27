@@ -60,23 +60,40 @@ const AddLandScreen = ({ navigation }) => {
             console.log('Land created:', newLand);
 
             Alert.alert(
-                "Land Added",
-                `"${landName}" added successfully. Do you want to link a device to this plot now?`,
+                "Land Added Successfully!",
+                `"${landName}" created. How would you like to add initial soil data?`,
                 [
-                    { text: "Later", style: "cancel", onPress: () => navigation.goBack() },
                     {
-                        text: "Link Device",
+                        text: "Enter Manually", // New Option
                         style: "default",
                         onPress: () => {
-                            // Navigate to Link Device Screen, passing farmId and new landId
-                            navigation.replace('LinkDevice', {
+                            // Navigate to Manual Soil Input Screen
+                            navigation.replace('ManualSoilInput', { // Use replace to remove AddLand from stack
+                                landId: newLand.id,
+                                landName: newLand.land_name,
+                                farmId: farmId,
+                            });
+                        },
+                    },
+                     {
+                        text: "Link Device", // Existing Option
+                        style: "default",
+                        onPress: () => {
+                            // Navigate to Link Device Screen
+                            navigation.replace('LinkDevice', { // Use replace
                                 farmId: farmId,
                                 landId: newLand.id, // Pass the new land ID
                                 landName: newLand.land_name,
                             });
                         },
                     },
-                ]
+                    {
+                        text: "Skip for Now", // Changed "Later" to "Skip"
+                        style: "cancel",
+                        onPress: () => navigation.goBack() // Just go back if skipping
+                    },
+                ],
+                 { cancelable: false } // Prevent dismissing alert by tapping outside
             );
             // Note: navigation.goBack() is called within the Alert handlers
 
@@ -193,7 +210,7 @@ const AddLandScreen = ({ navigation }) => {
 
 // --- Styles (adapt from AddFarmScreen, adding picker styles) ---
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: COLORS.background },
+    safeArea: { flex: 1, backgroundColor: COLORS.background, paddingTop: 40 },
     container: { flex: 1 },
     scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 },
     formGroup: { marginBottom: 20 },

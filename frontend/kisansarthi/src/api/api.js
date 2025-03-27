@@ -230,6 +230,17 @@ export const listCrops = () => request('/crops', 'GET', null, false); // Assumin
 export const listDiseases = () => request('/diseases', 'GET', null, false); // Assuming public or auth optional
 export const listFertilizers = () => request('/fertilizers', 'GET', null, false); // Assuming public or auth optional
 
+export const saveManualSoilReading = (landId, readingData) => {
+    // Add a timestamp client-side before sending
+    const dataWithTimestamp = {
+        ...readingData,
+        timestamp: new Date().toISOString(),
+    };
+    // Assuming a new dedicated endpoint for clarity
+    return request(`/lands/${landId}/manual-soil-reading`, 'POST', dataWithTimestamp, true);
+    // Alternative (if modifying ingest):
+    // return request(`/ingest/soil-readings`, 'POST', { ...dataWithTimestamp, land_id: landId }, true); // Use user auth
+};
 
 // --- Export Auth Helpers ---
 // Export storage functions so UI can call them directly on login/logout flows

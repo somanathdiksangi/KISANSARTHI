@@ -11,6 +11,7 @@ import AddLandScreen from "../screens/App/AddLandScreen";
 import LinkDeviceScreen from "../screens/App/LinkDeviceScreen";
 import LandDetailScreen from "../screens/App/LandDetailScreen";
 import CropSuggestionScreen from "../screens/App/CropSuggestionScreen";
+import ManualSoilInputScreen from '../screens/App/ManualSoilInputScreen';
 import { getAuthToken } from "../api/api";
 import { COLORS } from "../theme/colors";
 
@@ -78,6 +79,7 @@ const AppNavigator = () => {
           <Stack.Screen name="AddLand" component={AddLandScreen} />
           <Stack.Screen name="LinkDevice" component={LinkDeviceScreen} />
           <Stack.Screen name="LandDetail" component={LandDetailScreen} />
+          <Stack.Screen name="ManualSoilInput" component={ManualSoilInputScreen} />
           <Stack.Screen
             name="CropSuggestion"
             component={CropSuggestionScreen}

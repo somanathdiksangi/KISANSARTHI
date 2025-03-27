@@ -66,7 +66,7 @@ const CropSuggestionScreen = ({ navigation }) => {
             // Adjust keys based on your actual API response structure
             const contextNpkPh = response?.details || response?.soil_conditions; // Example keys
             setSoilContext({
-                timestamp: response?.based_on_reading_ts,
+                timestamp: Date(),
                 npkPh: {
                     n: contextNpkPh?.nitrogen_value,
                     p: contextNpkPh?.phosphorus_value,

@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.headerBackground, // White background
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border,
-        width: '100%',
+        width: '100%'
     },
     leftContainer: {
         minWidth: 40, // Ensure space even if no back button
