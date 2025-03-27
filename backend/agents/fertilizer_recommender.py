@@ -1,6 +1,7 @@
 from provider import Agent
 import aiohttp, json
 import asyncio
+import pickle
 from bs4 import BeautifulSoup
 
 async def fetch_content(session, url):
@@ -46,6 +47,19 @@ demo_soil_data = {
 class Fertilizer_Recommender:
     def __init__(self):
         self.agent = Agent()
+
+    def load_model_and_predict(self):
+        with open('./model/fertilizer.pkl', 'rb') as model_file:
+            model = pickle.load(model_file)
+            #N
+            #P
+            #K
+            #temp
+            #humidity
+            #ph
+            #rainfall
+            input_data = [[1, 80, 50, 100, 6.5, 1000, 20, 1]]  # Example input
+            prediction = model.predict(input_data)
 
     def execute(self, fertilizer="Urea", soil_data=None, crop='Tur'):
         urls = ['https://farmkart.com/search?q=fertilizer&options%5Bprefix%5D=last', f"https://krishisevakendra.in/search?q={fertilizer+'+' if fertilizer else 'urea+'}fertilizer&options%5Bprefix%5D=last"]

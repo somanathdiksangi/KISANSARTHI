@@ -1,6 +1,6 @@
 from provider import Agent
 import aiohttp, json
-import asyncio
+import asyncio, pickle
 from bs4 import BeautifulSoup
 
 demo_soil_data = {
@@ -17,6 +17,20 @@ demo_soil_data = {
 class Fertilizer_Recommender:
     def __init__(self):
         self.agent = Agent()
+
+    def load_model_and_predict(self):
+        with open('./agents/model/crop_recommendation.pkl', 'rb') as model_file:
+            model = pickle.load(model_file)
+            #N
+            #P
+            #K
+            #temp
+            #humidity
+            #ph
+            #rainfall
+            input_data = [[90, 42, 43, 20.87, 82, 6.5, 202.93]]  # Example input
+            prediction = model.predict(input_data)
+            print(prediction)
 
     def execute(self, fertilizer="Urea", soil_data=demo_soil_data, crop='Tur'):
         task = f"""
@@ -49,4 +63,4 @@ Provide your response in the structured format outlined above. Do not include an
         #     print(f"\nURL: {url}\n{'-'*60}\n{data[:500]}...")  # Print first 500 chars
 
 
-Fertilizer_Recommender().execute()
+Fertilizer_Recommender().load_model_and_predict()
