@@ -4,13 +4,14 @@ import { COLORS } from '../../theme/colors';
 import StarRating from './StarRating'; // Import StarRating
 
 const getDummyImageUrl = (seed) => `https://dummyjson.com/image/600x400/nature?${seed}`;
+import farmImage_default from '../../../assets/farm_background.png'
 
 const CropSuggestionCard = ({ suggestion, soilContext, onSelect, onViewDetails }) => {
     const crop = suggestion?.crop;
     const score = suggestion?.suitability_score ?? 0; // Score between 0 and 1
     const matchPercentage = Math.round(score * 100);
     const rating = score * 5; // Convert score to 0-5 rating for stars
-    const imageUrl = crop?.image_url || getDummyImageUrl(crop?.id || Math.random());
+    const imageUrl = crop?.image_url;
     // Example pH data - adjust based on actual API response
     const optimalPh = crop?.optimal_ph_min && crop?.optimal_ph_max
         ? `${crop.optimal_ph_min} - ${crop.optimal_ph_max}`
@@ -18,7 +19,7 @@ const CropSuggestionCard = ({ suggestion, soilContext, onSelect, onViewDetails }
 
     return (
         <View style={styles.card}>
-            <Image source={{ uri: imageUrl }} style={styles.image} />
+            <Image source={farmImage_default} style={styles.image} />
             <View style={styles.content}>
                 <View style={styles.headerRow}>
                     <Text style={styles.title}>{crop?.crop_name ?? 'Unknown Crop'}</Text>

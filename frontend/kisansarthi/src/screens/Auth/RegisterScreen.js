@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Check, Languages } from "lucide-react-native"; // Icon library
 import * as WebBrowser from "expo-web-browser";
+import { useAuth } from '../../context/AuthContext';
 
 import { COLORS } from "../../theme/colors"; // Import defined colors
 import * as api from "../../api/api"; // Import all API functions
@@ -27,15 +28,16 @@ const RegisterScreen = ({ navigation }) => {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { login } = useAuth();
 
   const handleLoginPress = () => {
     // Navigate to Login Screen - Placeholder action
-    // navigation.navigate('Login');
-    console.log("Navigate to Login");
-    Alert.alert(
-      "Navigation",
-      "Navigate to Login Screen (Not implemented yet)."
-    );
+    navigation.navigate('Login');
+    // console.log("Navigate to Login");
+    // Alert.alert(
+    //   "Navigation",
+    //   "Navigate to Login Screen (Not implemented yet)."
+    // );
   };
 
   const handleLanguageChange = () => {
@@ -82,8 +84,6 @@ const RegisterScreen = ({ navigation }) => {
     }
 
     setIsLoading(true);
-
-    try {
       const userData = {
         name: name,
         phone_number: phoneNumber,
@@ -95,30 +95,22 @@ const RegisterScreen = ({ navigation }) => {
         // email: `${phoneNumber.replace(/[^0-9]/g, '')}@example.com`
       };
 
-      console.log("Registering with:", userData); // Log data being sent
-      const response = await api.register(userData);
-      console.log("Registration successful:", response);
-
-      // Store token
-      if (response && response.token) {
-        await api.storeAuthToken(response.token);
-        // Navigate to the main part of the app (e.g., Dashboard)
-        // Replace 'AppMain' with the actual name of your main navigator/screen
-        // navigation.replace('AppMain'); // Use replace to prevent going back to auth
-        //  Alert.alert("Success", "Registration successful! Navigating to main app...(Not implemented)");
-        navigation.replace("Dashboard");
-      } else {
-        setError("Registration completed, but no token received.");
-      }
-    } catch (err) {
-      console.error("Registration failed:", err);
-      // Use error message from API response if available, otherwise generic message
-      setError(
-        err.message || "An unexpected error occurred during registration."
-      );
-    } finally {
-      setIsLoading(false);
-    }
+        setIsLoading(true);
+        try {
+            const response = await api.register(userData);
+            if (response && response.token) {
+                 // ++ Use context login function ++
+                await login(response.token);
+                // No need to manually navigate
+            } else {
+                 setError('Registration completed, but no token received.');
+                 setIsLoading(false); // Stop loading on error
+            }
+        } catch (err) {
+            // ... error handling ...
+             setIsLoading(false); // Stop loading on error
+        }
+         // No finally setIsLoading here if login triggers navigation
   };
 
   return (
@@ -236,6 +228,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
+    marginTop: 20
   },
   container: {
     flex: 1,

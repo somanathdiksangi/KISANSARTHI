@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { SlidersHorizontal, Languages, ArrowLeft } from 'lucide-react-native';
+import farmImage_default from '../../../assets/farm_background.png'
 
 import { COLORS } from '../../theme/colors';
 import StarRating from '../../components/CropSuggestion/StarRating';
@@ -99,7 +100,7 @@ const SuggestedCropDetailScreen = ({ navigation }) => {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 {/* Image */}
-                <Image source={{ uri: imageUrl }} style={styles.cropImage} />
+                <Image source={farmImage_default} style={styles.cropImage} />
 
                 {/* Title and Score */}
                 <View style={styles.titleContainer}>

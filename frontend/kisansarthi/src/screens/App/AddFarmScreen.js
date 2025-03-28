@@ -219,83 +219,96 @@ const AddFarmScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: COLORS.background, // Use a background color consistent with Dashboard
+        backgroundColor: COLORS.background,
+        paddingTop: 40
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 15,
-        paddingVertical: 12,
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 5,
+        backgroundColor: COLORS.white,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border,
-        backgroundColor: COLORS.white, // Header background
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        elevation: 2,
     },
     backButton: {
-        padding: 5,
-        marginRight: 15,
+        padding: 12,
+        backgroundColor: COLORS.lightGray,
+        borderRadius: 50,
     },
     headerTitle: {
-        flex: 1,
-        fontSize: 18,
-        fontWeight: '600',
+        fontSize: 22,
+        fontWeight: '700',
         color: COLORS.textDark,
-        textAlign: 'center',
     },
     container: {
-        flex: 1, // Ensure KeyboardAvoidingView takes available space
+        flex: 1,
     },
     scrollContent: {
         flexGrow: 1,
-        paddingHorizontal: 20,
-        paddingTop: 20,
-        paddingBottom: 20, // Add padding at bottom of scroll
+        paddingHorizontal: 24,
+        paddingVertical: 24,
     },
     instructionText: {
-        fontSize: 15,
+        fontSize: 16,
         color: COLORS.textMedium,
-        marginBottom: 25,
-        textAlign: 'left',
+        marginBottom: 24,
+        lineHeight: 22,
     },
     formGroup: {
-        marginBottom: 20,
+        marginBottom: 24,
     },
     label: {
-        fontSize: 15,
-        fontWeight: '600', // Semi-bold label
+        fontSize: 16,
+        fontWeight: '600',
         color: COLORS.textDark,
-        marginBottom: 8,
+        marginBottom: 10,
     },
     input: {
         backgroundColor: COLORS.white,
         borderWidth: 1,
         borderColor: COLORS.border,
-        borderRadius: 10, // Consistent rounding
-        paddingHorizontal: 15,
-        paddingVertical: 12,
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
         fontSize: 16,
         color: COLORS.textDark,
-        width: '100%',
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    inputFocused: {
+        borderColor: COLORS.primary,
+        shadowOpacity: 0.1,
     },
     locationInputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        position: 'relative', // For positioning the button
     },
     locationInput: {
-       flex: 1,
-       paddingRight: 50, // Make space for the button inside
+        flex: 1,
+        paddingRight: 50,
     },
     locationButton: {
         position: 'absolute',
-        right: 0,
-        top: 0,
-        bottom: 0,
+        right: 12,
+        top: 8,
+        bottom: 8,
+        backgroundColor: COLORS.primaryLight,
+        borderRadius: 24,
+        padding: 10,
         justifyContent: 'center',
-        paddingHorizontal: 12,
-        // backgroundColor: 'lightblue' // For debugging layout
+        alignItems: 'center',
+        elevation: 3,
     },
     locationHint: {
-        fontSize: 12,
+        fontSize: 13,
         color: COLORS.textLight,
         marginTop: 5,
     },
@@ -303,43 +316,42 @@ const styles = StyleSheet.create({
         color: COLORS.error,
         fontSize: 14,
         textAlign: 'center',
-        marginTop: 10,
-        marginBottom: 10,
+        marginVertical: 12,
+        backgroundColor: '#FDEDEE',
+        padding: 12,
+        borderRadius: 10,
     },
     buttonContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 15,
+        paddingHorizontal: 24,
+        paddingVertical: 20,
+        backgroundColor: COLORS.white,
         borderTopWidth: 1,
         borderTopColor: COLORS.border,
-        backgroundColor: COLORS.white, // Match header background
     },
     actionButton: {
-        flex: 1, // Make buttons share space
-        paddingVertical: 14,
-        borderRadius: 10,
+        flex: 1,
+        paddingVertical: 16,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        marginHorizontal: 5, // Add slight space between buttons
-         minHeight: 48,
+        marginHorizontal: 8,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
     },
     saveButton: {
-        backgroundColor: COLORS.addFarmButtonBackground, // Dark button for save
-        // Shadow
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 4,
+        backgroundColor: COLORS.primary,
     },
     cancelButton: {
         backgroundColor: COLORS.white,
         borderWidth: 1,
         borderColor: COLORS.border,
     },
-     buttonDisabled: {
-        opacity: 0.6, // Dim disabled buttons
+    buttonDisabled: {
+        opacity: 0.5,
     },
     actionButtonText: {
         fontSize: 16,

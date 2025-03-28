@@ -258,6 +258,16 @@ def main():
     );
     """
 
+    sql_create_courses_table = """
+    CREATE TABLE IF NOT EXISTS Courses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    link TEXT,
+    Description TEXT,
+    Rated INTEGER,
+    Views INTEGER
+    )
+"""
+
 
     # --- SQL Statements for Index Creation ---
 
@@ -314,6 +324,7 @@ def main():
         execute_sql(conn, sql_create_fertilizers_table)
         # `recommendations` references `users`, `lands`, `plantings`, `crops`, `fertilizers`
         execute_sql(conn, sql_create_recommendations_table)
+        execute_sql(conn, sql_create_courses_table)
         print("Tables created (if they didn't exist).")
 
         print("\nCreating indexes...")

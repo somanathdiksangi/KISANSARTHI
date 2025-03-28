@@ -145,6 +145,7 @@ export const updateCurrentUser = (userData) => request('/users/me', 'PUT', userD
 // 3. Farms
 export const createFarm = (farmData) => request('/farms', 'POST', farmData);
 export const listFarms = (limit = 20, offset = 0) => request(`/farms?limit=${limit}&offset=${offset}`, 'GET');
+export const getCourses = (limit = 20, offset = 0) => request(`/courses?limit=${limit}&offset=${offset}`, 'GET');
 export const getFarm = (farmId) => request(`/farms/${farmId}`, 'GET');
 export const updateFarm = (farmId, farmData) => request(`/farms/${farmId}`, 'PUT', farmData);
 export const deleteFarm = (farmId) => request(`/farms/${farmId}`, 'DELETE');

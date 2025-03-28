@@ -23,6 +23,12 @@ import NPKCard from '../../components/FarmDetail/NPKCard';
 import AlertCard from '../../components/Dashboard/AlertCard';
 import SectionHeader from '../../components/Common/SectionHeader'; // Updated path
 
+import crop_suggestion_bg from '../../../assets/crop_suggestion.png'
+import fertiliser_bg from '../../../assets/fertilizer_recomendation.png'
+import disease_bg from '../../../assets/disease_diagonistics.png'
+import monitor_bg from '../../../assets/soil_monitoring.png'
+
+
 const LandDetailScreen = ({ navigation }) => {
     const route = useRoute();
     const landId = route.params?.landId ?? null;
@@ -192,13 +198,13 @@ const LandDetailScreen = ({ navigation }) => {
                     {currentPlanting && (
                         <> // Show suggestion only if NO crop
                          <View style={styles.actionGridRow}>
-                            <ActionCard title="Crop Suggestion" onPress={handleCropSuggestion} imageUrl={'https://dummyjson.com/image/300x200/vegetables'}/>
-                            <ActionCard title="Diagnosing Plant Disease" onPress={handleDiagnoseDisease} imageUrl={'https://dummyjson.com/image/300x200/leaf'}/>
+                            <ActionCard title="Crop Suggestion" onPress={handleCropSuggestion} imageUrl={crop_suggestion_bg}/>
+                            <ActionCard title="Diagnosing Plant Disease" onPress={handleDiagnoseDisease} imageUrl={disease_bg}/>
                         </View>
                         // Show fertiliser rec only if crop IS planted
                          <View style={styles.actionGridRow}>
-                            <ActionCard title="Fertiliser Recommendation" onPress={handleFertiliserRec} imageUrl={'https://dummyjson.com/image/300x200/agriculture'}/>
-                            <ActionCard title="Soil Monitoring" onPress={handleSoilMonitoring} imageUrl={'https://dummyjson.com/image/300x200/dirt'}/>
+                            <ActionCard title="Fertiliser Recommendation" onPress={handleFertiliserRec} imageUrl={fertiliser_bg}/>
+                            <ActionCard title="Soil Monitoring" onPress={handleSoilMonitoring} imageUrl={monitor_bg}/>
                         </View>
                          </>
                      )}

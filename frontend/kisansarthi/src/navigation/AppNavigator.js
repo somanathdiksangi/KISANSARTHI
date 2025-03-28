@@ -14,6 +14,7 @@ import CropSuggestionScreen from "../screens/App/CropSuggestionScreen";
 import ManualSoilInputScreen from '../screens/App/ManualSoilInputScreen';
 import SuggestedCropDetailScreen from '../screens/App/SuggestedCropDetailScreen';
 import FertilizerRecommendationScreen from '../screens/App/FertilizerRecommendationScreen';
+import { useAuth } from '../context/AuthContext'; 
 import { getAuthToken } from "../api/api";
 import { COLORS } from "../theme/colors";
 
@@ -22,8 +23,15 @@ import { COLORS } from "../theme/colors";
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [userToken, setUserToken] = useState(null);
+  const { userToken, isLoading } = useAuth();
+
+      // Loading state is now handled by AuthProvider wrapper in App.js
+      if (isLoading) {
+        // AuthProvider shows loading indicator, so this might not be strictly needed,
+        // but can be a fallback or used if AuthProvider logic changes.
+        // Returning null is cleaner here if AuthProvider handles loading UI.
+        return null;
+     }
 
   useEffect(() => {
     const checkToken = async () => {

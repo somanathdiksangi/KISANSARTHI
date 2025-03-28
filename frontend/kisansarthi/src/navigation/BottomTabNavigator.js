@@ -1,69 +1,65 @@
+// src/navigation/BottomTabNavigator.js
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, ScanLine, BarChart3 } from 'lucide-react-native'; // Icons
+import { Home, ScanLine, User } from 'lucide-react-native'; // Changed BarChart3 to User
+import { Platform, View, Text } from 'react-native'; // Added View, Text for placeholder
 
 import DashboardScreen from '../screens/App/DashboardScreen';
-// Import other tab screens when created
-// import ScanScreen from '../screens/App/ScanScreen';
+// ++ Import ProfileScreen ++
+import ProfileScreen from '../screens/App/ProfileScreen'; // We'll create this next
+// -- Remove AnalyticsScreen imports/placeholders --
 // import AnalyticsScreen from '../screens/App/AnalyticsScreen';
 import { COLORS } from '../theme/colors';
-import { Platform } from 'react-native';
 
 const Tab = createBottomTabNavigator();
 
-// Temporary placeholder screens
+// Temporary placeholder screen
 const ScanScreen = () => <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Scan Screen</Text></View>;
-const AnalyticsScreen = () => <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Analytics Screen</Text></View>;
-
+// Removed AnalyticsScreen placeholder
 
 const BottomTabNavigator = () => {
     return (
         <Tab.Navigator
             screenOptions={({ route }) => ({
-                headerShown: false, // We have custom headers in screens
+                headerShown: false,
                 tabBarIcon: ({ focused, color, size }) => {
-                    let IconComponent = Home; // Default icon
+                    let IconComponent;
 
                     if (route.name === 'Dashboard') {
                         IconComponent = Home;
                     } else if (route.name === 'Scan') {
                         IconComponent = ScanLine;
-                    } else if (route.name === 'Analytics') {
-                        IconComponent = BarChart3;
+                    } else if (route.name === 'Profile') { // ++ Changed from Analytics ++
+                        IconComponent = User; // ++ Use User icon ++
+                    } else {
+                         IconComponent = Home; // Fallback
                     }
 
-                    // Adjust size and color based on focus state
                     return <IconComponent size={focused ? size + 2 : size} color={color} />;
                 },
-                tabBarActiveTintColor: COLORS.primary, // Color for active tab
-                tabBarInactiveTintColor: COLORS.textLight, // Color for inactive tabs
+                tabBarActiveTintColor: COLORS.primary,
+                tabBarInactiveTintColor: COLORS.textLight,
                 tabBarStyle: {
-                    backgroundColor: COLORS.white,
-                    borderTopWidth: 1,
-                    borderTopColor: COLORS.border,
-                    height: Platform.OS === 'ios' ? 90 : 65, // Adjust height
-                    paddingBottom: Platform.OS === 'ios' ? 30 : 5, // Adjust padding for notch/android
-                    paddingTop: 5,
+                    backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.border,
+                    height: Platform.OS === 'ios' ? 90 : 65, paddingBottom: Platform.OS === 'ios' ? 30 : 5, paddingTop: 5,
                 },
-                tabBarLabelStyle: {
-                    fontSize: 11,
-                    fontWeight: '500',
-                    // marginBottom: 5, // Adjust label position
-                },
+                tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
             })}
         >
             <Tab.Screen
                 name="Dashboard"
                 component={DashboardScreen}
-                options={{ tabBarLabel: 'Home' }} // Label shown in the tab bar
+                options={{ tabBarLabel: 'Home' }}
             />
             <Tab.Screen
                 name="Scan"
-                component={ScanScreen} // Replace with actual ScanScreen later
+                component={ScanScreen}
             />
+            {/* ++ Changed Analytics to Profile ++ */}
             <Tab.Screen
-                name="Analytics"
-                component={AnalyticsScreen} // Replace with actual AnalyticsScreen later
+                name="Profile"
+                component={ProfileScreen} // Use the new screen component
+                options={{ tabBarLabel: 'Profile' }} // Update label
             />
         </Tab.Navigator>
     );

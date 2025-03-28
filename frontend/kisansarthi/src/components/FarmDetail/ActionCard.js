@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient'; // For gradient overlay
 const getDummyImageUrl = () => `https://dummyjson.com/image/300x200/nature?t=${Math.random()}`;
 
 const ActionCard = ({ title, onPress, imageUrl }) => {
-    const imageSource = imageUrl ? { uri: imageUrl } : { uri: getDummyImageUrl() };
+    const imageSource = imageUrl ? imageUrl : { uri: getDummyImageUrl() };
 
     return (
         <TouchableOpacity style={styles.card} onPress={onPress}>

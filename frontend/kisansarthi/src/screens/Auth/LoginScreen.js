@@ -16,6 +16,7 @@ import { ArrowLeft, Phone } from 'lucide-react-native'; // Icons
 
 import { COLORS } from '../../theme/colors';
 import * as api from '../../api/api';
+import { useAuth } from '../../context/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -23,6 +24,7 @@ const LoginScreen = ({ navigation }) => {
     const [showOtpInput, setShowOtpInput] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const { login } = useAuth();
     // Optional: Store verification ID if needed by backend
     // const [verificationId, setVerificationId] = useState(null);
 
@@ -48,8 +50,8 @@ const LoginScreen = ({ navigation }) => {
         setIsLoading(true);
         try {
             console.log(`Requesting OTP for ${phoneNumber}`);
-            const response = await api.requestOtp(phoneNumber);
-            console.log('OTP Request response:', response); // Log backend response
+            // const response = await api.requestOtp(phoneNumber);
+            // console.log('OTP Request response:', response); // Log backend response
             // Assuming success if no error is thrown
             // setVerificationId(response?.verificationId); // Store if backend sends it
             setShowOtpInput(true);
@@ -72,27 +74,19 @@ const LoginScreen = ({ navigation }) => {
         }
         setIsLoading(true);
         try {
-            console.log(`Verifying OTP ${otp} for ${phoneNumber}`);
-            const response = await api.verifyOtp(phoneNumber, otp /*, verificationId*/); // Pass verificationId if needed
-            console.log('OTP Verification successful:', response);
-
+            const response = await api.login({"email_or_phone":phoneNumber});
             if (response && response.token) {
-                await api.storeAuthToken(response.token);
-                // Navigate to the main app tabs, replacing the auth stack
-                navigation.replace('AppTabs');
+                // ++ Use context login function ++
+                await login(response.token);
+                // No need to manually navigate, AppNavigator will react
+                navigator.navigate('AppTabs')
             } else {
                  setError('Login completed, but no token received.');
+                 setIsLoading(false); // Stop loading on error
             }
-
         } catch (err) {
-            console.error('OTP Verification failed:', err);
-             if (err.status === 401 || err.status === 400) { // Specific errors for invalid OTP
-                 setError('Invalid OTP code. Please try again.');
-             } else {
-                 setError(err.message || 'Failed to verify OTP. Please try again.');
-             }
-        } finally {
-            setIsLoading(false);
+             // ... error handling ...
+             setIsLoading(false); // Stop loading on error
         }
     };
 

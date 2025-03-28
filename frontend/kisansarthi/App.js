@@ -1,14 +1,18 @@
+// App.js
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar'; // Import StatusBar
-
-import AppNavigator from './src/navigation/AppNavigator'; // Import the navigator
+import { StatusBar } from 'expo-status-bar';
+import AppNavigator from './src/navigation/AppNavigator';
+import { AuthProvider } from './src/context/AuthContext'; // Import AuthProvider
 
 export default function App() {
   return (
-    <NavigationContainer>
-        <StatusBar style="auto" /> {/* Or "dark", "light" based on your design */}
+    // Wrap NavigationContainer with AuthProvider
+    <AuthProvider>
+      <NavigationContainer>
+        <StatusBar style="auto" />
         <AppNavigator />
-    </NavigationContainer>
+      </NavigationContainer>
+    </AuthProvider>
   );
 }

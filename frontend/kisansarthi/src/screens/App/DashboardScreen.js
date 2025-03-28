@@ -8,8 +8,10 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  Image, // Import Image
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context"; // Use edge-to-edge safe area
+import { Plus } from 'lucide-react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { COLORS } from "../../theme/colors";
 import * as api from "../../api/api";
@@ -24,51 +26,49 @@ import SectionHeader from "../../components/Common/SectionHeader";
 const DashboardScreen = ({ navigation }) => {
   const [userData, setUserData] = useState(null);
   const [farms, setFarms] = useState([]);
-  const [alerts, setAlerts] = useState([]); // Use recommendations for alerts for now
+  const [alerts, setAlerts] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [tips, setTips] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchData = useCallback(async () => {
-    // Don't set loading true on refresh, use refreshing state
     if (!refreshing) {
       setIsLoading(true);
     }
     setError(null);
 
     try {
-      // Fetch data concurrently
-      const [userRes, farmsRes] = await Promise.all([
+      const [userRes, farmsRes, coursesRes] = await Promise.all([
         api.getCurrentUser(),
-        api.listFarms(5), // Limit farms displayed initially if needed
-        // TODO: Add specific alert fetching if backend supports it
-        // For now, reuse recommendations or fetch all types
+        api.listFarms(5),
+        api.getCourses(5) // Fetch courses
       ]);
 
       setUserData(userRes);
       setFarms(farmsRes?.farms ?? []);
+      setCourses(coursesRes?.courses ?? []);  // Set the courses data
       console.log(farmsRes);
       if (farmsRes?.farms.length != 0) {
         recommendationsRes = await api.getRecommendations({
-          type: "weekly_tip",
+          type: "alert",
           limit: 3,
           is_read: false,
         });
         const allRecs = recommendationsRes?.recommendations ?? [];
-        // Separate recommendations into alerts and tips (example logic)
-        // Assuming alerts might be a different type or identified by title pattern
+
         const fetchedAlerts = allRecs.filter(
           (rec) =>
-            rec.title?.toLowerCase().includes("alert") ||
-            rec.title?.toLowerCase().includes("low")
-        ); // Example filter
+            rec.recommendation_type?.toLowerCase().includes("alert") ||
+            rec.recommendation_type?.toLowerCase().includes("low")
+        );
         const fetchedTips = allRecs.filter(
           (rec) => !fetchedAlerts.includes(rec)
         );
 
-        setAlerts(fetchedAlerts.slice(0, 2)); // Show max 2 recent alerts
-        setTips(fetchedTips.slice(0, 2)); // Show max 2 recent tips
+        setAlerts(fetchedAlerts.slice(0, 2));
+        setTips(fetchedTips.slice(0, 2));
       }
     } catch (err) {
       console.error("Failed to fetch dashboard data:", err);
@@ -77,20 +77,18 @@ const DashboardScreen = ({ navigation }) => {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, [refreshing]); // Depend on refreshing state
+  }, [refreshing]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // Run fetchData when component mounts or refresh state changes
+  }, [fetchData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // fetchData will be triggered by the useEffect dependency change
   }, []);
 
   // --- Navigation Handlers ---
   const handleNotificationPress = () => {
-    // navigation.navigate('Notifications');
     Alert.alert(
       "Navigate",
       "Go to Notifications Screen (Not implemented yet)."
@@ -98,19 +96,15 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const handleAddFarmPress = () => {
-    // navigation.navigate('AddFarm');
     navigation.navigate("AddFarm");
   };
 
   const handleFarmPress = (farmId) => {
-    // Pass farmId now
     if (!farmId) return;
-    // ++ Navigate to the NEW FarmDetails screen ++
     navigation.navigate("FarmDetails", { farmId: farmId });
   };
 
   const handleViewAllAlerts = () => {
-    // navigation.navigate('AlertsList');
     Alert.alert(
       "Navigate",
       "Go to View All Alerts Screen (Not implemented yet)."
@@ -118,7 +112,6 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const handleAlertPress = (alert) => {
-    // navigation.navigate('AlertDetail', { alertId: alert.id });
     Alert.alert(
       "Navigate",
       `Go to Alert Detail Screen for Alert ID: ${alert.id} (Not implemented yet).`
@@ -126,7 +119,6 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const handleViewAllTips = () => {
-    // navigation.navigate('TipsList');
     Alert.alert(
       "Navigate",
       "Go to View All Tips Screen (Not implemented yet)."
@@ -134,12 +126,45 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const handleTipPress = (tip) => {
-    // navigation.navigate('TipDetail', { tipId: tip.id });
     Alert.alert(
       "Navigate",
       `Go to Tip Detail Screen for Tip ID: ${tip.id} (Not implemented yet).`
     );
   };
+
+  const handleCoursePress = (course) => {
+      // Handle course navigation (e.g., open link, show details)
+      Alert.alert(
+          "Navigate",
+          `Go to Course Link: ${course.link} (Not implemented yet).`
+      );
+  };
+
+    const getYoutubeThumbnail = (url) => {
+        const videoId = url.match(/(?:https?:\/{2})?(?:w{3}\.)?youtu(?:be)?\.(?:com|be)\/(?:watch\?v=)?([^&]+)/)?.[1];
+        return videoId ? `https://img.youtube.com/vi/${videoId}/0.jpg` : null;
+    };
+
+  // --- Course Card Component ---
+    const CourseCard = ({ course, onPress }) => {
+        const thumbnail = getYoutubeThumbnail(course.link);
+        return (
+            <TouchableOpacity style={styles.courseCard} onPress={() => onPress(course)}>
+                {thumbnail ? (
+                    <Image source={{ uri: thumbnail }} style={styles.courseThumbnail} />
+                ) : (
+                    <View style={styles.noThumbnailPlaceholder}>
+                        <Text style={styles.noThumbnailText}>No Thumbnail</Text>
+                    </View>
+                )}
+                <View style={styles.courseInfo}>
+                    <Text style={styles.courseDescription} numberOfLines={2}>{course.Description}</Text>
+                    <Text style={styles.courseViews}>Views: {course.Views}</Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
+
 
   // --- Render Content ---
   const renderContent = () => {
@@ -166,14 +191,12 @@ const DashboardScreen = ({ navigation }) => {
         <SectionHeader title="Your Farms" />
         <View style={styles.sectionContent}>
           {farms.map((farm) => (
-            // Assuming farm object here *is* the farm, pass farm.id
             <FarmCard
               key={farm.id}
               farm={farm}
               onPress={() => handleFarmPress(farm.id)}
             />
           ))}
-          {/* TODO: Add "View All Farms" if applicable */}
         </View>
 
         {/* Recent Alerts Section */}
@@ -195,11 +218,27 @@ const DashboardScreen = ({ navigation }) => {
           </>
         )}
 
-        {/* Courses & Tips Section */}
+         {/* Courses Section */}
+         {courses.length > 0 && (
+            <>
+                <SectionHeader title="Courses" />
+                <View style={styles.sectionContent}>
+                    {courses.map((course) => (
+                        <CourseCard
+                            key={`course-${course.id}`}
+                            course={course}
+                            onPress={handleCoursePress}
+                        />
+                    ))}
+                </View>
+            </>
+        )}
+
+        {/* Tips Section */}
         {tips.length > 0 && (
           <>
             <SectionHeader
-              title="Courses & Tips"
+              title="Tips"
               onViewAll={handleViewAllTips}
             />
             <View style={styles.sectionContent}>
@@ -213,13 +252,16 @@ const DashboardScreen = ({ navigation }) => {
             </View>
           </>
         )}
+        <TouchableOpacity style={styles.button} onPress={handleAddFarmPress}>
+          <Plus size={18} color={COLORS.white} style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Add Farm</Text>
+        </TouchableOpacity>
       </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-      {/* Keep bottom edge for potential bottom tabs */}
       <DashboardHeader
         userName={userData?.name}
         onNotificationPress={handleNotificationPress}
@@ -237,34 +279,21 @@ const DashboardScreen = ({ navigation }) => {
       >
         {renderContent()}
       </ScrollView>
-      {/* Bottom Tab Navigator will be placed here by the navigator setup */}
     </SafeAreaView>
   );
 };
 
-// // Helper component for section headers
-// const SectionHeader = ({ title, onViewAll }) => (
-//     <View style={styles.sectionHeader}>
-//         <Text style={styles.sectionTitle}>{title}</Text>
-//         {onViewAll && (
-//             <TouchableOpacity onPress={onViewAll}>
-//                 <Text style={styles.viewAll}>View All</Text>
-//             </TouchableOpacity>
-//         )}
-//     </View>
-// );
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background, // Use the light grey background
+    backgroundColor: COLORS.background,
   },
   scrollView: {
     flex: 1,
   },
   scrollContentContainer: {
-    flexGrow: 1, // Ensure content can grow to fill space, important for centering empty state
-    paddingBottom: 30, // Add padding at the bottom
+    flexGrow: 1,
+    paddingBottom: 30,
   },
   center: {
     flex: 1,
@@ -274,23 +303,28 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: COLORS.error,
+    fontSize: 14,
     textAlign: "center",
+    marginBottom: 12,
+    backgroundColor: "#FEE2E2",
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.error,
   },
-  // Styles for the populated dashboard content
   populatedContent: {
-    paddingHorizontal: 15, // Add horizontal padding for sections
-    paddingTop: 10,
+    paddingHorizontal: 20,
+    paddingTop: 15,
   },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 20, // Space above section title
-    marginBottom: 12,
-    paddingHorizontal: 5, // Slight inner padding for alignment
+    marginBottom: 16,
+    marginTop: 10,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
     color: COLORS.textDark,
   },
@@ -298,10 +332,102 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.link,
     fontWeight: "500",
+    textDecorationLine: "underline",
   },
   sectionContent: {
-    // Styles for the container holding cards within a section
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    marginBottom: 20,
   },
+  button: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
+    transition: 'background-color 0.3s',
+  },
+  buttonIcon: {
+    marginRight: 10,
+  },
+  buttonText: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  buttonPressed: {
+    backgroundColor: COLORS.primaryDark,
+    transform: [{ scale: 0.98 }],
+  },
+  '@media (max-width: 400)': {
+    sectionTitle: {
+      fontSize: 18,
+    },
+    button: {
+      paddingHorizontal: 30,
+    },
+  },
+    // Course Styles
+    courseCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        borderRadius: 8,
+        backgroundColor: COLORS.surface, // Use a subtle background
+        shadowColor: COLORS.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        overflow: 'hidden', // Clip content to rounded borders
+    },
+    courseThumbnail: {
+        width: 100,
+        height: 100,
+        resizeMode: 'cover',
+    },
+    courseInfo: {
+        flex: 1,
+        padding: 10,
+    },
+    courseTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: COLORS.textDark,
+    },
+    courseDescription: {
+        fontSize: 14,
+        color: COLORS.textMedium,
+    },
+    courseViews: {
+        fontSize: 12,
+        color: COLORS.textLight,
+        marginTop: 5,
+    },
+    noThumbnailPlaceholder: {
+        width: 100,
+        height: 100,
+        backgroundColor: COLORS.border,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    noThumbnailText: {
+        fontSize: 12,
+        color: COLORS.textMedium,
+    },
 });
 
 export default DashboardScreen;

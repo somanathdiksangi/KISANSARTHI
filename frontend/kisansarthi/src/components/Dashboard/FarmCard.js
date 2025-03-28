@@ -3,6 +3,9 @@ import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { MapPin, AlertTriangle } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
 
+import farmImage_default from '../../../assets/farm_background.png'
+
+
 // Placeholder image function - replace with actual logic or props
 const getDummyImageUrl = () => `https://dummyjson.com/image/400x300/nature?${Math.random()}`;
 
@@ -17,7 +20,7 @@ const FarmCard = ({ farm, onPress }) => {
 
     return (
         <TouchableOpacity style={styles.card} onPress={() => onPress(landIdToNavigate)}>
-            <Image source={{ uri: getDummyImageUrl() }} style={styles.image} />
+            <Image source={farmImage_default} style={styles.image} />
             <View style={styles.content}>
                 <View style={styles.header}>
                     <Text style={styles.farmName} numberOfLines={1}>{farmName}</Text>
