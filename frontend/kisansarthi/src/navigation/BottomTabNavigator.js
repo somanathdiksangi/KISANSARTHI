@@ -3,6 +3,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, ScanLine, User } from 'lucide-react-native'; // Changed BarChart3 to User
 import { Platform, View, Text } from 'react-native'; // Added View, Text for placeholder
+import ScanScreen from '../screens/App/ScanScreen';
 
 import DashboardScreen from '../screens/App/DashboardScreen';
 // ++ Import ProfileScreen ++
@@ -13,8 +14,6 @@ import { COLORS } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
 
-// Temporary placeholder screen
-const ScanScreen = () => <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Scan Screen</Text></View>;
 // Removed AnalyticsScreen placeholder
 
 const BottomTabNavigator = () => {
@@ -53,7 +52,7 @@ const BottomTabNavigator = () => {
             />
             <Tab.Screen
                 name="Scan"
-                component={ScanScreen}
+                component={ScanScreen} // ++ Use actual ScanScreen ++
             />
             {/* ++ Changed Analytics to Profile ++ */}
             <Tab.Screen

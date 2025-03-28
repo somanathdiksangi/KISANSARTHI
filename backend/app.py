@@ -1032,6 +1032,7 @@ def update_planting(planting_id):
 @app.route('/api/v1/diagnostics/scan-plant', methods=['POST'])
 @auth_required
 def scan_plant_disease():
+    print("Yayy")
     if 'image' not in request.files:
         abort(400, description="Missing 'image' file in request.")
 
@@ -1077,6 +1078,7 @@ def scan_plant_disease():
 
     # Return the ID so the client can poll for results
     return jsonify({"log_id": log_id, "status": "pending", "image_url": dummy_storage_url, "message": "Image received, analysis queued."}), 202
+
 
 @app.route('/api/v1/diagnostics/logs/<int:log_id>', methods=['GET'])
 @auth_required
@@ -1497,7 +1499,6 @@ def internal_server_error(error):
     response = jsonify({'error': 'Internal Server Error', 'message': error.description})
     response.status_code = 500
     return response
-
 
 # --- Main Execution ---
 if __name__ == '__main__':

@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
-  Image, // Import Image
+  Image,
+  Linking  // Import Image
 } from "react-native";
 import { Plus } from 'lucide-react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -146,24 +147,42 @@ const DashboardScreen = ({ navigation }) => {
     };
 
   // --- Course Card Component ---
-    const CourseCard = ({ course, onPress }) => {
-        const thumbnail = getYoutubeThumbnail(course.link);
-        return (
-            <TouchableOpacity style={styles.courseCard} onPress={() => onPress(course)}>
-                {thumbnail ? (
-                    <Image source={{ uri: thumbnail }} style={styles.courseThumbnail} />
-                ) : (
-                    <View style={styles.noThumbnailPlaceholder}>
-                        <Text style={styles.noThumbnailText}>No Thumbnail</Text>
-                    </View>
-                )}
-                <View style={styles.courseInfo}>
-                    <Text style={styles.courseDescription} numberOfLines={2}>{course.Description}</Text>
-                    <Text style={styles.courseViews}>Views: {course.Views}</Text>
-                </View>
-            </TouchableOpacity>
-        );
+  const CourseCard = ({ course }) => {
+    const thumbnail = getYoutubeThumbnail(course.link);
+
+    const handlePress = async () => {
+        try {
+            // Attempt to open the link in the YouTube app
+            const supported = await Linking.canOpenURL(`youtube://${course.link}`);
+
+            if (supported) {
+                await Linking.openURL(`youtube://${course.link}`);
+            } else {
+                // If YouTube app is not available, open in the browser
+                await Linking.openURL(course.link);
+            }
+        } catch (error) {
+            console.error("An error occurred opening the link:", error);
+            // Optionally, show an error message to the user
+        }
     };
+
+    return (
+        <TouchableOpacity style={styles.courseCard} onPress={handlePress}>
+            {thumbnail ? (
+                <Image source={{ uri: thumbnail }} style={styles.courseThumbnail} />
+            ) : (
+                <View style={styles.noThumbnailPlaceholder}>
+                    <Text style={styles.noThumbnailText}>No Thumbnail</Text>
+                </View>
+            )}
+            <View style={styles.courseInfo}>
+                <Text style={styles.courseDescription} numberOfLines={2}>{course.Description}</Text>
+                <Text style={styles.courseViews}>Views: {course.Views}</Text>
+            </View>
+        </TouchableOpacity>
+    );
+};
 
 
   // --- Render Content ---

@@ -201,12 +201,13 @@ export const scanPlantDisease = (imageData, landId = null, plantingId = null) =>
         type: imageData.type,
     });
     if (landId !== null) {
-        formData.append('land_id', landId.toString());
+        formData.append('land_id', landId);
     }
     if (plantingId !== null) {
-        formData.append('planting_id', plantingId.toString());
+        formData.append('planting_id', plantingId);
     }
     // Use the generic request helper, specifying isFormData=true
+    console.log("Yayyyyyyy")
     return request('/diagnostics/scan-plant', 'POST', formData, true, true);
 };
 export const getDiagnosisLog = (logId) => request(`/diagnostics/logs/${logId}`, 'GET');

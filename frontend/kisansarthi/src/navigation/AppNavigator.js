@@ -14,6 +14,9 @@ import CropSuggestionScreen from "../screens/App/CropSuggestionScreen";
 import ManualSoilInputScreen from '../screens/App/ManualSoilInputScreen';
 import SuggestedCropDetailScreen from '../screens/App/SuggestedCropDetailScreen';
 import FertilizerRecommendationScreen from '../screens/App/FertilizerRecommendationScreen';
+import MarketValueScreen from '../screens/App/MarketValueScreen'; 
+import SoilMonitoringScreen from '../screens/App/SoilMonitoringScreen';
+import DiseaseResultScreen from '../screens/App/DiseaseResultScreen';
 import { useAuth } from '../context/AuthContext'; 
 import { getAuthToken } from "../api/api";
 import { COLORS } from "../theme/colors";
@@ -92,6 +95,9 @@ const AppNavigator = () => {
           <Stack.Screen name="ManualSoilInput" component={ManualSoilInputScreen} />
           <Stack.Screen name="SuggestedCropDetail" component={SuggestedCropDetailScreen} />
           <Stack.Screen name="FertilizerRecommendation" component={FertilizerRecommendationScreen} />
+          <Stack.Screen name="MarketValue" component={MarketValueScreen} />
+          <Stack.Screen name="SoilMonitoring" component={SoilMonitoringScreen} />
+          <Stack.Screen name="DiseaseResult" component={DiseaseResultScreen} />
           <Stack.Screen
             name="CropSuggestion"
             component={CropSuggestionScreen}
