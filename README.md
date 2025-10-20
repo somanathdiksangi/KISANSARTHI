@@ -5,7 +5,6 @@
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 ## 📖 Table of Contents
 - [Project Overview](#-project-overview)
@@ -13,14 +12,14 @@
 - [Key Features](#-key-features--multimodal-integration)
 - [Technical Architecture](#-technical-architecture)
 - [Setup Instructions](#-end-to-end-setup-instructions)
-- [Contributing](#-contributing)
-- [License](#-license)
 
 ## 🌱 Project Overview
 
 KisanSarthi is a **Multimodal AI-powered mobile application** designed to democratize precision agriculture for smallholder farmers, particularly in the Indian context. It provides personalized, real-time advisory on crop selection, fertilizer application, and plant disease diagnosis to maximize yield and profitability.
 
-![Demo Screenshot](https://via.placeholder.com/800x400?text=KisanSarthi+App+Demo)
+### 🎬 Demo Video
+Watch the demo video to see KisanSarthi in action:  
+[https://drive.google.com/drive/folders/1aVO5KDEp7lY4WLPOi3iveJNiDtvdMNzV](https://drive.google.com/drive/folders/1aVO5KDEp7lY4WLPOi3iveJNiDtvdMNzV)
 
 ## 🎯 The Precision Agriculture Access Gap (Problem)
 
@@ -166,23 +165,6 @@ The frontend connects to the running backend.
    ```
 
 The mobile app will now launch on your connected device or emulator, ready to communicate with the local AI backend.
-
-## 🤝 Contributing
-
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
-
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
-Don't forget to give the project a star! Thanks again!
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 ---
 
